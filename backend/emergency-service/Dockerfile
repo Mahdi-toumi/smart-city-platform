@@ -1,21 +1,18 @@
-# Utilisation d'une image légère de Python 3.9
-FROM python:3.9-slim
+FROM python:3.12-slim
 
-# Définition du dossier de travail dans le conteneur
 WORKDIR /app
 
-# 1. Copie des fichiers de dépendances
+# Copie des requirements et installation
 COPY requirements.txt .
-
-# 2. Installation des librairies (gRPC, protobuf)
-# --no-cache-dir permet de réduire la taille de l'image
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 3. Copie de tout le code source (y compris le dossier proto et les fichiers générés)
+# Copie du code
 COPY . .
 
-# Documentation du port (Celui défini dans server.py)
+# IMPORTANT : On doit s'assurer que les fichiers générés protobuf sont là
+# Dans un CI/CD réel, on les générerait ici, mais pour le dev on copie ceux du local
+# (Assure-toi d'avoir lancé la commande protoc avant le build docker)
+
 EXPOSE 50053
 
-# Commande de démarrage
 CMD ["python", "server.py"]
