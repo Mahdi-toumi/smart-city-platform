@@ -1,8 +1,10 @@
 package com.smartcity.mobility_service.controllers;
 
-import com.smartcity.mobility_service.entities.Trajet;
-import com.smartcity.mobility_service.entities.enums.TypeTransport;
+import com.smartcity.mobility_service.model.Trajet;
+import com.smartcity.mobility_service.model.enums.TypeTransport;
 import com.smartcity.mobility_service.services.MobilityService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
@@ -17,45 +19,33 @@ public class MobilityController {
         this.service = service;
     }
 
-    // GET global
     @GetMapping
-    public List<Trajet> getAllTrajets() {
-        return service.getAllTrajets();
+    public ResponseEntity<List<Trajet>> getAll() {
+        return ResponseEntity.ok(service.getAllTrajets());
     }
 
-    // GET par ID avec gestion 404
     @GetMapping("/{id}")
-    public ResponseEntity<Trajet> getTrajetById(@PathVariable Long id) {
-        return service.getTrajetById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<Trajet> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(service.getTrajetById(id));
     }
 
-    // GET Filtre par Type (ex: /search?type=BUS)
     @GetMapping("/search")
-    public List<Trajet> getTrajetsByType(@RequestParam TypeTransport type) {
-        return service.getTrajetsByType(type);
+    public ResponseEntity<List<Trajet>> getByType(@RequestParam TypeTransport type) {
+        return ResponseEntity.ok(service.getTrajetsByType(type));
     }
 
-    // POST
     @PostMapping
-    public ResponseEntity<Trajet> createTrajet(@RequestBody Trajet trajet) {
-        return ResponseEntity.ok(service.createTrajet(trajet));
+    public ResponseEntity<Trajet> create(@Valid @RequestBody Trajet trajet) {
+        return new ResponseEntity<>(service.createTrajet(trajet), HttpStatus.CREATED);
     }
 
-    // PUT (Mise à jour)
     @PutMapping("/{id}")
-    public ResponseEntity<Trajet> updateTrajet(@PathVariable Long id, @RequestBody Trajet trajet) {
-        try {
-            return ResponseEntity.ok(service.updateTrajet(id, trajet));
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
+    public ResponseEntity<Trajet> update(@PathVariable Long id, @Valid @RequestBody Trajet trajet) {
+        return ResponseEntity.ok(service.updateTrajet(id, trajet));
     }
 
-    // DELETE
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTrajet(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.deleteTrajet(id);
         return ResponseEntity.noContent().build();
     }

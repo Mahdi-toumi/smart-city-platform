@@ -1,13 +1,17 @@
 package com.smartcity.mobility_service.services;
 
-import com.smartcity.mobility_service.entities.enums.TypeTransport;
+import com.smartcity.mobility_service.model.enums.TypeTransport;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import com.smartcity.mobility_service.repositories.TrajetRepository;
-import com.smartcity.mobility_service.entities.Trajet;
+import com.smartcity.mobility_service.model.Trajet;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.Optional;
 
 @Service
+@Transactional // Important pour garantir l'intégrité des transactions BDD
 public class MobilityService {
 
     private final TrajetRepository repository;
@@ -20,11 +24,11 @@ public class MobilityService {
         return repository.findAll();
     }
 
-    public Optional<Trajet> getTrajetById(Long id) {
-        return repository.findById(id);
+    public Trajet getTrajetById(Long id) {
+        return repository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Trajet introuvable avec l'ID : " + id));
     }
 
-    // Recherche par type
     public List<Trajet> getTrajetsByType(TypeTransport type) {
         return repository.findByTypeTransport(type);
     }
@@ -33,20 +37,20 @@ public class MobilityService {
         return repository.save(trajet);
     }
 
-    // Mise à jour d'un trajet existant
-    public Trajet updateTrajet(Long id, Trajet trajetDetails) {
-        return repository.findById(id).map(trajet -> {
-            trajet.setDepart(trajetDetails.getDepart());
-            trajet.setDestination(trajetDetails.getDestination());
-            trajet.setTypeTransport(trajetDetails.getTypeTransport());
-            trajet.setDureeEstimee(trajetDetails.getDureeEstimee());
-            trajet.setEtatTrafic(trajetDetails.getEtatTrafic());
-            return repository.save(trajet);
-        }).orElseThrow(() -> new RuntimeException("Trajet non trouvé avec l'id " + id));
+    public Trajet updateTrajet(Long id, Trajet details) {
+        Trajet trajet = getTrajetById(id); // Réutilise la méthode qui lance l'exception si pas trouvé
+        trajet.setDepart(details.getDepart());
+        trajet.setDestination(details.getDestination());
+        trajet.setTypeTransport(details.getTypeTransport());
+        trajet.setDureeEstimee(details.getDureeEstimee());
+        trajet.setStatusTrafic(details.getStatusTrafic());
+        return repository.save(trajet);
     }
 
-    // Suppression
     public void deleteTrajet(Long id) {
+        if (!repository.existsById(id)) {
+            throw new EntityNotFoundException("Impossible de supprimer : Trajet introuvable ID " + id);
+        }
         repository.deleteById(id);
     }
 }

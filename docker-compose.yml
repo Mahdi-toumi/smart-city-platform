@@ -1,0 +1,55 @@
+version: '3.8'
+
+networks:
+  smart-city-net:
+    driver: bridge
+
+services:
+  # ----------------------------------------
+  # BASE DE DONNÉES PostgreSQL 17
+  # ----------------------------------------
+  postgres-db:
+    image: postgres:17-alpine
+    container_name: smart-city-postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=mobility_user
+      - POSTGRES_PASSWORD=mobility1922
+      - POSTGRES_DB=mobility_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - smart-city-net
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mobility_user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------
+  # SERVICE : SMART MOBILITY
+  # ----------------------------------------
+  mobility-service:
+    build: ./backend/mobility-service
+    container_name: mobility-service
+    ports:
+      - "8081:8081"
+    environment:
+      # Connexion à PostgreSQL dans Docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/mobility_db
+      - SPRING_DATASOURCE_USERNAME=mobility_user
+      - SPRING_DATASOURCE_PASSWORD=mobility1922
+
+      # Laisse Spring créer/mettre à jour les tables
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+    networks:
+      - smart-city-net
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

@@ -1,8 +1,8 @@
 package com.smartcity.mobility_service.repositories;
 
-import com.smartcity.mobility_service.entities.Trajet;
-import com.smartcity.mobility_service.entities.enums.EtatTrafic;
-import com.smartcity.mobility_service.entities.enums.TypeTransport;
+import com.smartcity.mobility_service.model.Trajet;
+import com.smartcity.mobility_service.model.enums.StatusTrafic;
+import com.smartcity.mobility_service.model.enums.TypeTransport;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -14,5 +14,5 @@ public interface TrajetRepository extends JpaRepository<Trajet, Long> {
     List<Trajet> findByTypeTransport(TypeTransport type);
 
     // Trouver tous les trajets ayant un certain état (ex: Tous les PERTURBE)
-    List<Trajet> findByEtatTrafic(EtatTrafic etat);
+    List<Trajet> findByStatusTrafic(StatusTrafic etat);
 }
