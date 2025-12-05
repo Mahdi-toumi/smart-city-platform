@@ -6,7 +6,7 @@ networks:
 
 services:
   # ----------------------------------------
-  # BASE DE DONNÉES PostgreSQL 17
+  # BASE DE DONNÉES PARTAGÉE (Mais isolée logiquement)
   # ----------------------------------------
   postgres-db:
     image: postgres:17-alpine
@@ -15,22 +15,24 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_USER=mobility_user
-      - POSTGRES_PASSWORD=mobility1922
-      - POSTGRES_DB=mobility_db
+      # Super-admin (root) pour la gestion globale si besoin
+      - POSTGRES_USER=mahdi
+      - POSTGRES_PASSWORD=1922
+      # (Note: POSTGRES_DB n'est plus nécessaire car init.sql crée les DBs spécifiques)
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      #  C'EST ICI : On injecte le script de création des users/dbs
+      - ./infrastructure/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - smart-city-net
-
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mobility_user"]
+      test: ["CMD-SHELL", "pg_isready -U mahdi"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   # ----------------------------------------
-  # SERVICE : SMART MOBILITY
+  # SERVICE 1 : SMART MOBILITY (REST)
   # ----------------------------------------
   mobility-service:
     build: ./backend/mobility-service
@@ -38,12 +40,30 @@ services:
     ports:
       - "8081:8081"
     environment:
-      # Connexion à PostgreSQL dans Docker
+      # Connexion avec l'utilisateur MOBILITY
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/mobility_db
       - SPRING_DATASOURCE_USERNAME=mobility_user
       - SPRING_DATASOURCE_PASSWORD=mobility1922
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+    networks:
+      - smart-city-net
+    depends_on:
+      postgres-db:
+        condition: service_healthy
 
-      # Laisse Spring créer/mettre à jour les tables
+  # ----------------------------------------
+  # SERVICE 2 : AIR QUALITY (SOAP)
+  # ----------------------------------------
+  air-quality-service:
+    build: ./backend/air-quality-service
+    container_name: air-quality-service
+    ports:
+      - "8082:8082"
+    environment:
+      # Connexion avec l'utilisateur AIR
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/air_db
+      - SPRING_DATASOURCE_USERNAME=air_user
+      - SPRING_DATASOURCE_PASSWORD=air1922
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
     networks:
       - smart-city-net

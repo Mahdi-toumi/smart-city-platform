@@ -57,21 +57,21 @@ class UrgenceServiceServicer(object):
     """
 
     def SignalerUrgence(self, request, context):
-        """1. Signalement (Simple appel)
+        """1. Signaler une urgence (Unary)
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def SuivreIntervention(self, request, context):
-        """2. Streaming Serveur (Le serveur envoie une suite de messages)
+        """2. Suivre une intervention en temps réel (Server Streaming)
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
     def HistoriqueUrgences(self, request, context):
-        """3. Historique (Récupérer la liste)
+        """3. Récupérer l'historique (Unary)
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')

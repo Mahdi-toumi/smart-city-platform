@@ -4,60 +4,66 @@ package urgences;
 
 // --- SERVICE ---
 service UrgenceService {
-  // 1. Signalement (Simple appel)
+  // 1. Signaler une urgence (Unary)
   rpc SignalerUrgence (UrgenceRequest) returns (UrgenceResponse);
 
-  // 2. Streaming Serveur (Le serveur envoie une suite de messages)
+  // 2. Suivre une intervention en temps réel (Server Streaming)
   rpc SuivreIntervention (SuiviRequest) returns (stream SuiviUpdate);
 
-  // 3. Historique (Récupérer la liste)
+  // 3. Récupérer l'historique (Unary)
   rpc HistoriqueUrgences (HistoriqueRequest) returns (HistoriqueResponse);
 }
 
-// --- MESSAGES ---
-
+// --- ENUMS (Typage Fort) ---
 enum TypeUrgence {
   INCONNU = 0;
   ACCIDENT_ROUTE = 1;
   INCENDIE = 2;
-  MALAISE_CARDIAQUE = 3;
-  FUITE_GAZ = 4;
+  MALAISE = 3;
+  INONDATION = 4;
+  FUITE_GAZ = 5;
 }
 
+enum StatutIntervention {
+  EN_ATTENTE = 0;
+  EN_COURS = 1;
+  TERMINE = 2;
+}
+
+// --- MESSAGES ---
 message Coordonnees {
   double latitude = 1;
   double longitude = 2;
 }
 
-// REQUÊTE SIGNALEMENT
 message UrgenceRequest {
-  TypeUrgence type_urgence = 1;
-  Coordonnees position = 2; // GPS exact
+  TypeUrgence type = 1;
+  Coordonnees position = 2;
   string description = 3;
+  string citoyen_id = 4; // Qui a lancé l'alerte
 }
 
 message UrgenceResponse {
-  string id_intervention = 1; // ID unique pour le suivi
+  string id = 1; // ID MongoDB
   bool prise_en_compte = 2;
-  string message_status = 3;
+  string message = 3;
+  StatutIntervention statut = 4;
 }
 
-// REQUÊTE SUIVI (Streaming)
 message SuiviRequest {
-  string id_intervention = 1;
+  string id_urgence = 1;
 }
 
 message SuiviUpdate {
-  Coordonnees position_actuelle_equipe = 1; // L'ambulance bouge !
-  string status_message = 2; // "En route", "Arrivée imminente"
-  int32 temps_restant_min = 3;
+  Coordonnees position_actuelle = 1;
+  string message_status = 2;
+  int32 temps_estime_arrivee = 3; // Minutes
 }
 
-// REQUÊTE HISTORIQUE
 message HistoriqueRequest {
-  // Vide pour tout récupérer
+  string citoyen_id = 1; // Optionnel (filtre)
 }
 
 message HistoriqueResponse {
-  repeated UrgenceRequest urgences_passees = 1; // Liste d'objets
+  repeated UrgenceRequest urgences = 1;
 }
