@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package urgences;
+
+// --- SERVICE ---
+service UrgenceService {
+  // 1. Signalement (Simple appel)
+  rpc SignalerUrgence (UrgenceRequest) returns (UrgenceResponse);
+
+  // 2. Streaming Serveur (Le serveur envoie une suite de messages)
+  rpc SuivreIntervention (SuiviRequest) returns (stream SuiviUpdate);
+
+  // 3. Historique (Récupérer la liste)
+  rpc HistoriqueUrgences (HistoriqueRequest) returns (HistoriqueResponse);
+}
+
+// --- MESSAGES ---
+
+enum TypeUrgence {
+  INCONNU = 0;
+  ACCIDENT_ROUTE = 1;
+  INCENDIE = 2;
+  MALAISE_CARDIAQUE = 3;
+  FUITE_GAZ = 4;
+}
+
+message Coordonnees {
+  double latitude = 1;
+  double longitude = 2;
+}
+
+// REQUÊTE SIGNALEMENT
+message UrgenceRequest {
+  TypeUrgence type_urgence = 1;
+  Coordonnees position = 2; // GPS exact
+  string description = 3;
+}
+
+message UrgenceResponse {
+  string id_intervention = 1; // ID unique pour le suivi
+  bool prise_en_compte = 2;
+  string message_status = 3;
+}
+
+// REQUÊTE SUIVI (Streaming)
+message SuiviRequest {
+  string id_intervention = 1;
+}
+
+message SuiviUpdate {
+  Coordonnees position_actuelle_equipe = 1; // L'ambulance bouge !
+  string status_message = 2; // "En route", "Arrivée imminente"
+  int32 temps_restant_min = 3;
+}
+
+// REQUÊTE HISTORIQUE
+message HistoriqueRequest {
+  // Vide pour tout récupérer
+}
+
+message HistoriqueResponse {
+  repeated UrgenceRequest urgences_passees = 1; // Liste d'objets
+}
