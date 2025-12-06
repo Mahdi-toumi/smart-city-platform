@@ -16,7 +16,7 @@ services:
       - "5432:5432"
     environment:
       # Super-admin (root) pour la gestion globale si besoin
-      - POSTGRES_USER=mahdi
+      - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=1922
       # (Note: POSTGRES_DB n'est plus nécessaire car init.sql crée les DBs spécifiques)
     volumes:
@@ -26,7 +26,7 @@ services:
     networks:
       - smart-city-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mahdi"]
+      test: ["CMD-SHELL", "pg_isready -U admin"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -50,6 +50,32 @@ services:
       - ./infrastructure/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
     networks:
       - smart-city-net
+  
+  # ----------------------------------------
+  # BASE DE DONNÉES MySQL (Citizen)
+  # ----------------------------------------
+  mysql-db:
+    image: mysql:8.0
+    container_name: smart-city-mysql
+    restart: always
+    ports:
+      - "3306:3306"
+    environment:
+      # Configuration unique (Pas besoin de script init complexe pour une seule DB)
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=citizen_db
+      - MYSQL_USER=citizen_user
+      - MYSQL_PASSWORD=citizen1922
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - smart-city-net
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+  
 
   # ----------------------------------------
   # SERVICE 1 : SMART MOBILITY (REST)
@@ -126,6 +152,27 @@ services:
     depends_on:
       - mongo-db
 
+# ----------------------------------------
+  # SERVICE 5 : SMART CITIZEN (REST)
+  # ----------------------------------------
+  citizen-service:
+    build: ./backend/citizen-service
+    container_name: citizen-service
+    ports:
+      - "8083:8083"
+    environment:
+      # Connexion au conteneur mysql-db
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/citizen_db?createDatabaseIfNotExist=true&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false
+      - SPRING_DATASOURCE_USERNAME=citizen_user
+      - SPRING_DATASOURCE_PASSWORD=citizen1922
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+    networks:
+      - smart-city-net
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   mongo_data:
+  mysql_data:
