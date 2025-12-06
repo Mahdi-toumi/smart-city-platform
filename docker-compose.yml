@@ -172,6 +172,44 @@ services:
       mysql-db:
         condition: service_healthy
 
+  # ----------------------------------------
+  # SERVICE 6 : AUTH SERVICE (Security)
+  # ----------------------------------------
+  auth-service:
+    build: ./backend/auth-service
+    container_name: auth-service
+    ports:
+      - "8089:8089"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/auth_db
+      - SPRING_DATASOURCE_USERNAME=auth_user
+      - SPRING_DATASOURCE_PASSWORD=auth1922
+      # La clé secrète pour signer les tokens
+      - APPLICATION_SECURITY_JWT_SECRET_KEY=404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+      - ADMIN_USERNAME=admin
+      - ADMIN_SECURE_PASSWORD=admin1922
+    networks:
+      - smart-city-net
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+
+  # ----------------------------------------
+  # API GATEWAY (Point d'entrée unique)
+  # ----------------------------------------
+  api-gateway:
+    build: ./infrastructure/api-gateway
+    container_name: api-gateway
+    ports:
+      - "8080:8080" # C'est le SEUL port qu'on exposera au public à la fin
+    networks:
+      - smart-city-net
+    depends_on:
+      - mobility-service
+      - air-quality-service
+      - citizen-service
+      - energy-service
+      
 volumes:
   postgres_data:
   mongo_data:

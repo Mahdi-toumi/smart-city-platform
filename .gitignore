@@ -13,6 +13,7 @@ mvnw
 mvnw.cmd
 *.jar
 *.war
+.env
 
 # --- Node.js / React ---
 node_modules/

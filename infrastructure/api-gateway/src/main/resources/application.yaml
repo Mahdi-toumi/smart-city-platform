@@ -1,0 +1,125 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+
+      routes:
+        # ==========================================
+        # 0. AUTH SERVICE
+        # ==========================================
+        # 0a. Accès Public (Login, Register)
+        - id: auth-service-public
+          uri: http://auth-service:8089
+          predicates:
+            - Path=/auth/**
+
+        # 0b. Accès Admin Panel (Gestion users)
+        - id: auth-service-admin
+          uri: http://auth-service:8089
+          predicates:
+            - Path=/admin/**
+          filters:
+            - name: AuthenticationFilter
+              args:
+                role: ADMIN  # 🔒 Verrouillé Admin
+
+        # ==========================================
+        # 1. SMART MOBILITY
+        # ==========================================
+        # 1a. Écriture (Créer lignes, changer statut trafic) -> ADMIN
+        - id: mobility-service-write
+          uri: http://mobility-service:8081
+          predicates:
+            - Path=/api/mobility/**
+            - Method=POST,PUT,PATCH,DELETE
+          filters:
+            - name: AuthenticationFilter
+              args:
+                role: ADMIN
+
+        # 1b. Lecture (Consulter trajets) -> Authentifié (Tout le monde)
+        - id: mobility-service-read
+          uri: http://mobility-service:8081
+          predicates:
+            - Path=/api/mobility/**
+            - Method=GET
+          filters:
+            - AuthenticationFilter # Juste un token valide requis
+
+        # ==========================================
+        # 2. SMART CITIZEN
+        # ==========================================
+        # 2a. Routes Admin Spécifiques (Stats, Voir tout, Changer statut)
+        # Note : On cible des URLs précises ou des Méthodes dangereuses
+        - id: citizen-service-admin
+          uri: http://citizen-service:8083
+          predicates:
+            - Path=/api/citizen/reclamations/all, /api/citizen/reclamations/stats, /api/citizen/reclamations/*/status
+          filters:
+            - name: AuthenticationFilter
+              args:
+                role: ADMIN
+
+        # 2b. Suppression (DELETE) -> ADMIN
+        - id: citizen-service-delete
+          uri: http://citizen-service:8083
+          predicates:
+            - Path=/api/citizen/**
+            - Method=DELETE
+          filters:
+            - name: AuthenticationFilter
+              args:
+                role: ADMIN
+
+        # 2c. Usage Citoyen Standard (Créer, Voir "Me") -> Authentifié
+        - id: citizen-service-standard
+          uri: http://citizen-service:8083
+          predicates:
+            - Path=/api/citizen/**
+          filters:
+            - AuthenticationFilter
+
+        # ==========================================
+        # 3. AIR QUALITY
+        # ==========================================
+        # Consultation -> Authentifié
+        - id: air-quality-service
+          uri: http://air-quality-service:8082
+          predicates:
+            - Path=/services/air/**
+          filters:
+            - AuthenticationFilter
+
+        # ==========================================
+        # 4. SMART ENERGY (GraphQL)
+        # ==========================================
+        # GraphQL utilise POST pour tout. On laisse l'accès aux connectés.
+        # Le filtrage fin se ferait dans le resolver Node.js si besoin.
+        - id: energy-service
+          uri: http://energy-service:4000
+          predicates:
+            - Path=/graphql/**
+          filters:
+            - RewritePath=/graphql(?<segment>/?.*), /$\{segment}
+            - AuthenticationFilter
+
+
+        # 5. Route vers SMART EMERGENCY (gRPC)
+              # ATTENTION : Les navigateurs ne parlent pas gRPC direct.
+              # On ne route pas le gRPC ici pour le client Web.
+              # C'est l'Orchestrateur qui appellera ce service.
+              # (On ajoutera la route de l'Orchestrateur plus tard)
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO

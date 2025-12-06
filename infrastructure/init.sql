@@ -9,3 +9,8 @@ CREATE DATABASE mobility_db OWNER mobility_user;
 -- Donner tous les privilèges aux utilisateurs sur leurs bases
 GRANT ALL PRIVILEGES ON DATABASE air_db TO air_user;
 GRANT ALL PRIVILEGES ON DATABASE mobility_db TO mobility_user;
+
+-- NOUVEAU : Service Authentification
+CREATE USER auth_user WITH PASSWORD 'auth1922';
+CREATE DATABASE auth_db OWNER auth_user;
+GRANT ALL PRIVILEGES ON DATABASE auth_db TO auth_user;
