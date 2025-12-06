@@ -11,7 +11,7 @@ const server = new ApolloServer({
 
 // Démarrage du serveur (Port 4000 par défaut pour GraphQL)
 const { url } = await startStandaloneServer(server, {
-    listen: { port: 4000 },
+    listen: { port: 4001 },
 });
 
 console.log(` Service Citoyen (GraphQL) prêt à l'adresse : ${url}`);

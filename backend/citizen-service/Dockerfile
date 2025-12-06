@@ -13,7 +13,7 @@ RUN npm install
 COPY . .
 
 # Port GraphQL
-EXPOSE 4000
+EXPOSE 4001
 
 # Commande de démarrage
 CMD ["npm", "start"]

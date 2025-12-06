@@ -109,6 +109,22 @@ services:
       - smart-city-net
     depends_on:
       - mongo-db
+  
+  # ----------------------------------------
+  # SERVICE 4 : SMART ENERGY (GraphQL)
+  # ----------------------------------------
+  energy-service:
+    build: ./backend/energy-service
+    container_name: energy-service
+    ports:
+      - "4000:4000"
+    environment:
+      # Connexion avec l'utilisateur ENERGY
+      - MONGO_URI=mongodb://energy_user:energy1922@mongo-db:27017/energy_db?authSource=energy_db
+    networks:
+      - smart-city-net
+    depends_on:
+      - mongo-db
 
 volumes:
   postgres_data:
