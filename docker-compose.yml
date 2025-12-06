@@ -201,7 +201,7 @@ services:
     build: ./infrastructure/api-gateway
     container_name: api-gateway
     ports:
-      - "8080:8080" # C'est le SEUL port qu'on exposera au public à la fin
+      - "8080:8080"  # C'est le SEUL port qu'on exposera au public à la fin
     networks:
       - smart-city-net
     depends_on:
