@@ -41,3 +41,5 @@ Le projet est entièrement conteneurisé.
 2. **Lancer la stack complète :**
    ```bash
    docker-compose up -d --build
+   ```
+   Ou vous n’avez qu’à double-cliquer sur init.bat
