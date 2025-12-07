@@ -60,35 +60,55 @@ class UrgenceServiceServicer(urgences_pb2_grpc.UrgenceServiceServicer):
         try:
             logging.info(f" Début du suivi pour l'urgence {request.id_urgence}")
             
+            # Position de départ (Tunis)
             lat = 36.8065
             lon = 10.1815
-            temps = 15
+            
+            # Temps de trajet initial (en minutes)
+            temps = 10  # On commence à 10 min pour que la démo ne soit pas trop longue
 
-            for i in range(10):
+            # TANT QUE le temps n'est pas écoulé
+            while temps > 0:
                 if not context.is_active():
-                    logging.warning(f" Client déconnecté pendant le streaming pour {request.id_urgence}")
+                    logging.warning(f" Client déconnecté pendant le streaming")
                     break
 
-                lat += 0.001
-                lon += 0.001
+                # Simulation du déplacement (l'ambulance se rapproche du sud-est)
+                lat -= 0.001 
+                lon += 0.001 
+                
+                # On décrémente le temps
                 temps -= 1
 
+                # Création du message de mise à jour
                 update = urgences_pb2.SuiviUpdate(
                     position_actuelle=urgences_pb2.Coordonnees(latitude=lat, longitude=lon),
                     message_status="Ambulance en route (Sirènes activées)",
-                    temps_estime_arrivee=max(1, temps)
+                    temps_estime_arrivee=temps
                 )
 
-                logging.info(f" Update : Ambulance à ({lat:.4f}, {lon:.4f}), arrivée estimée {update.temps_estime_arrivee} min")
+                logging.info(f" Update : ETA {temps} min - Pos ({lat:.4f}, {lon:.4f})")
+                
+                # Envoi au client (Java Orchestrator)
                 yield update
-                time.sleep(2)
+                
+                # Pause de 1 seconde pour accélérer la démo (au lieu de 2)
+                time.sleep(1)
 
-            logging.info(f" Fin du suivi pour l'urgence {request.id_urgence}")
+            # Une fois la boucle finie (temps = 0)
+            yield urgences_pb2.SuiviUpdate(
+                position_actuelle=urgences_pb2.Coordonnees(latitude=lat, longitude=lon),
+                message_status="Ambulance arrivée sur les lieux !",
+                temps_estime_arrivee=0
+            )
+            logging.info(f" Fin du suivi : Arrivée à destination.")
+
         except Exception as e:
             logging.error(f" Erreur pendant le streaming : {e}")
             context.set_details(str(e))
             context.set_code(grpc.StatusCode.INTERNAL)
 
+            
     # 3. HISTORIQUE
     def HistoriqueUrgences(self, request, context):
         try:

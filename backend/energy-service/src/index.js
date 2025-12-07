@@ -20,6 +20,7 @@ const server = new ApolloServer({
 
 const { url } = await startStandaloneServer(server, {
     listen: { port: 4000 },
+    cors: false
 });
 
 console.log(` Service Energy (GraphQL) prêt à l'adresse : ${url}`);

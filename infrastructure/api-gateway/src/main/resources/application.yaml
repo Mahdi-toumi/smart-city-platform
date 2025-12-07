@@ -7,18 +7,18 @@ spring:
   cloud:
     gateway:
       # --- CONFIGURATION CORS (Pour que React puisse appeler le Back) ---
-      globalcors:
-        cors-configurations:
-          '[/**]':
-            allowedOrigins: "*"   # En prod, mettre "http://localhost:3000"
-            allowedMethods:
-              - GET
-              - POST
-              - PUT
-              - PATCH
-              - DELETE
-              - OPTIONS
-            allowedHeaders: "*"
+      #globalcors:
+      #  cors-configurations:
+      #   '[/**]':
+       #     allowedOrigins: "*"   # En prod, mettre "http://localhost:3000"
+        #    allowedMethods:
+         #     - GET
+          #    - POST
+           #   - PUT
+            #  - PATCH
+             # - DELETE
+              #- OPTIONS
+            #allowedHeaders: "*"
 
       routes:
         # ==========================================
@@ -124,6 +124,7 @@ spring:
           filters:
             - RewritePath=/graphql(?<segment>/?.*), /$\{segment}
             - AuthenticationFilter
+            - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials RETAIN_FIRST
 
         # ==========================================
         # 5. ORCHESTRATOR SERVICE

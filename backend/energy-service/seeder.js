@@ -6,11 +6,11 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/energy_db'
 
 const seedData = async () => {
     await mongoose.connect(MONGO_URI);
-    console.log("🌱 Connexion Seeder établie.");
+    console.log(" Connexion Seeder établie.");
 
     // Nettoyage
     await Consommation.deleteMany({});
-    console.log("🧹 Anciennes données supprimées.");
+    console.log(" Anciennes données supprimées.");
 
     const quartiers = ["Lac 1", "Centre-Ville", "Marsa", "Carthage"];
     const ressources = ["ELECTRICITE", "EAU", "GAZ"];
@@ -32,7 +32,7 @@ const seedData = async () => {
     }
 
     await Consommation.insertMany(mesures);
-    console.log(`✅ ${mesures.length} mesures insérées.`);
+    console.log(` ${mesures.length} mesures insérées.`);
     process.exit();
 };
 
