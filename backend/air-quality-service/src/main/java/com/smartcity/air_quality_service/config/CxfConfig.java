@@ -21,7 +21,7 @@ public class CxfConfig {
     @Bean
     public Endpoint endpoint() {
         EndpointImpl endpoint = new EndpointImpl(bus, airQualityService);
-        endpoint.publish("/air"); // URL finale : /services/air
+        endpoint.publish("/air"); // URL finale : http://localhost:8082/services/air
         return endpoint;
     }
 }

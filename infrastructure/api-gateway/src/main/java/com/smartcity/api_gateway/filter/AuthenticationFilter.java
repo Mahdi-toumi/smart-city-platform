@@ -7,6 +7,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Arrays;
+import java.util.List;
+
 @Component
 public class AuthenticationFilter extends AbstractGatewayFilterFactory<AuthenticationFilter.Config> {
 
@@ -20,44 +23,50 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
     @Override
     public GatewayFilter apply(Config config) {
         return (exchange, chain) -> {
-            // 1. Vérification présence Header (Code existant...)
+
+            // 1. Vérifier la présence du Header Authorization
             if (!exchange.getRequest().getHeaders().containsKey(HttpHeaders.AUTHORIZATION)) {
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Header manquant");
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Header Authorization manquant");
             }
 
             String authHeader = exchange.getRequest().getHeaders().get(HttpHeaders.AUTHORIZATION).get(0);
+
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 authHeader = authHeader.substring(7);
             }
 
             try {
-                // 2. Validation signature
+                // 2. Valider la signature du Token
                 jwtUtil.validateToken(authHeader);
 
-                // 3. --- NOUVEAU : VÉRIFICATION DU RÔLE ---
-                if (config.getRole() != null) {
+                // 3. --- LOGIQUE MULTI-RÔLES CORRIGÉE ---
+                if (config.getRole() != null && !config.getRole().isEmpty()) {
                     String userRole = jwtUtil.extractRole(authHeader);
 
-                    // Si le rôle requis est ADMIN mais que l'user est CITOYEN -> Erreur
-                    if (!config.getRole().equals(userRole)) {
-                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Accès interdit : Rôle " + config.getRole() + " requis");
+                    // On découpe la configuration YAML par virgule (ex: "ADMIN,MAIRE")
+                    String[] allowedRoles = config.getRole().split(",");
+
+                    // On vérifie si le rôle de l'utilisateur est dans la liste
+                    boolean isAuthorized = Arrays.asList(allowedRoles).contains(userRole);
+
+                    if (!isAuthorized) {
+                        throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                                "Accès interdit : Rôle insuffisant. Requis : " + config.getRole());
                     }
                 }
 
             } catch (ResponseStatusException e) {
-                throw e; // On relance les erreurs HTTP spécifiques
+                throw e;
             } catch (Exception e) {
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token invalide");
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token invalide ou expiré");
             }
 
             return chain.filter(exchange);
         };
     }
 
-    // --- CONFIGURATION ---
     public static class Config {
-        private String role; // Le rôle qu'on va écrire dans le YAML
-
+        private String role;
         public String getRole() { return role; }
         public void setRole(String role) { this.role = role; }
     }

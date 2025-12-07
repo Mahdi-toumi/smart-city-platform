@@ -6,24 +6,39 @@ spring:
     name: api-gateway
   cloud:
     gateway:
+      # --- CONFIGURATION CORS (Pour que React puisse appeler le Back) ---
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOrigins: "*"
-            allowedMethods: "*"
+            allowedOrigins: "*"   # En prod, mettre "http://localhost:3000"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
             allowedHeaders: "*"
 
       routes:
         # ==========================================
         # 0. AUTH SERVICE
         # ==========================================
-        # 0a. Accès Public (Login, Register)
+        # 0a. Public (Login, Register)
         - id: auth-service-public
           uri: http://auth-service:8089
           predicates:
-            - Path=/auth/**
+            - Path=/auth/register, /auth/token
 
-        # 0b. Accès Admin Panel (Gestion users)
+        # 0b. Profil Utilisateur (Nécessaire pour le Front)
+        - id: auth-service-profile
+          uri: http://auth-service:8089
+          predicates:
+            - Path=/auth/me
+          filters:
+            - AuthenticationFilter # Token requis
+
+        # 0c. Admin Panel
         - id: auth-service-admin
           uri: http://auth-service:8089
           predicates:
@@ -31,12 +46,12 @@ spring:
           filters:
             - name: AuthenticationFilter
               args:
-                role: ADMIN  # 🔒 Verrouillé Admin
+                role: ADMIN
 
         # ==========================================
         # 1. SMART MOBILITY
         # ==========================================
-        # 1a. Écriture (Créer lignes, changer statut trafic) -> ADMIN
+        # 1a. Gestion (Admin)
         - id: mobility-service-write
           uri: http://mobility-service:8081
           predicates:
@@ -47,30 +62,29 @@ spring:
               args:
                 role: ADMIN
 
-        # 1b. Lecture (Consulter trajets) -> Authentifié (Tout le monde)
+        # 1b. Consultation (Tout le monde connecté)
         - id: mobility-service-read
           uri: http://mobility-service:8081
           predicates:
             - Path=/api/mobility/**
             - Method=GET
           filters:
-            - AuthenticationFilter # Juste un token valide requis
+            - AuthenticationFilter
 
         # ==========================================
         # 2. SMART CITIZEN
         # ==========================================
-        # 2a. Routes Admin Spécifiques (Stats, Voir tout, Changer statut)
-        # Note : On cible des URLs précises ou des Méthodes dangereuses
-        - id: citizen-service-admin
+        # 2a. Supervision (Admin OU Maire)
+        - id: citizen-service-supervision
           uri: http://citizen-service:8083
           predicates:
-            - Path=/api/citizen/reclamations/all, /api/citizen/reclamations/stats, /api/citizen/reclamations/*/status
+            - Path=/api/citizen/reclamations/stats, /api/citizen/reclamations/all, /api/citizen/reclamations/*/status
           filters:
             - name: AuthenticationFilter
               args:
-                role: ADMIN
+                role: ADMIN,MAIRE
 
-        # 2b. Suppression (DELETE) -> ADMIN
+        # 2b. Suppression (Admin Seul)
         - id: citizen-service-delete
           uri: http://citizen-service:8083
           predicates:
@@ -81,7 +95,7 @@ spring:
               args:
                 role: ADMIN
 
-        # 2c. Usage Citoyen Standard (Créer, Voir "Me") -> Authentifié
+        # 2c. Usage Citoyen Standard
         - id: citizen-service-standard
           uri: http://citizen-service:8083
           predicates:
@@ -90,9 +104,9 @@ spring:
             - AuthenticationFilter
 
         # ==========================================
-        # 3. AIR QUALITY
+        # 3. AIR QUALITY (SOAP via Orchestrateur)
         # ==========================================
-        # Consultation -> Authentifié
+        # Note: On laisse l'accès direct SOAP au cas où, mais le Front passera par l'Orchestrateur
         - id: air-quality-service
           uri: http://air-quality-service:8082
           predicates:
@@ -103,8 +117,6 @@ spring:
         # ==========================================
         # 4. SMART ENERGY (GraphQL)
         # ==========================================
-        # GraphQL utilise POST pour tout. On laisse l'accès aux connectés.
-        # Le filtrage fin se ferait dans le resolver Node.js si besoin.
         - id: energy-service
           uri: http://energy-service:4000
           predicates:
@@ -113,12 +125,16 @@ spring:
             - RewritePath=/graphql(?<segment>/?.*), /$\{segment}
             - AuthenticationFilter
 
-
-        # 5. Route vers SMART EMERGENCY (gRPC)
-              # ATTENTION : Les navigateurs ne parlent pas gRPC direct.
-              # On ne route pas le gRPC ici pour le client Web.
-              # C'est l'Orchestrateur qui appellera ce service.
-              # (On ajoutera la route de l'Orchestrateur plus tard)
+        # ==========================================
+        # 5. ORCHESTRATOR SERVICE
+        # ==========================================
+        # API principale pour le Frontend (Urgences, Météo, Historique)
+        - id: orchestrator-service
+          uri: http://orchestrator-service:8084
+          predicates:
+            - Path=/api/orchestrator/**
+          filters:
+            - AuthenticationFilter
 
 logging:
   level:

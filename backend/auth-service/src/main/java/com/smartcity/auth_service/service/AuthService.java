@@ -84,4 +84,17 @@ public class AuthService {
                 .role(user.getRole())
                 .build();
     }
+
+    public com.smartcity.auth_service.entity.dto.UserDto getCurrentUser(String username) {
+        var user = repository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+
+        return com.smartcity.auth_service.entity.dto.UserDto.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .nomComplet(user.getNomComplet())
+                .role(user.getRole())
+                .build();
+    }
 }

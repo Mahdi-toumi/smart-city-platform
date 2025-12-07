@@ -5,9 +5,11 @@ networks:
     driver: bridge
 
 services:
-  # ----------------------------------------
-  # BASE DE DONNÉES PARTAGÉE (Mais isolée logiquement)
-  # ----------------------------------------
+  # ==========================================
+  # BASES DE DONNÉES
+  # ==========================================
+  
+  # 1. PostgreSQL (Mobility, Air, Auth)
   postgres-db:
     image: postgres:17-alpine
     container_name: smart-city-postgres
@@ -15,13 +17,10 @@ services:
     ports:
       - "5432:5432"
     environment:
-      # Super-admin (root) pour la gestion globale si besoin
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=1922
-      # (Note: POSTGRES_DB n'est plus nécessaire car init.sql crée les DBs spécifiques)
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      #  C'EST ICI : On injecte le script de création des users/dbs
       - ./infrastructure/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - smart-city-net
@@ -31,9 +30,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # ----------------------------------------
-  # BASE DE DONNÉES NoSQL (MongoDB)
-  # ----------------------------------------
+  # 2. MongoDB (Emergency, Energy)
   mongo-db:
     image: mongo:8.2.2
     container_name: smart-city-mongo
@@ -41,19 +38,15 @@ services:
     ports:
       - "27017:27017"
     environment:
-      # Compte ADMIN racine (nécessaire pour créer les autres)
       - MONGO_INITDB_ROOT_USERNAME=root
       - MONGO_INITDB_ROOT_PASSWORD=rootpassword
     volumes:
       - mongo_data:/data/db
-      # Script JS pour créer emergency_user
       - ./infrastructure/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
     networks:
       - smart-city-net
-  
-  # ----------------------------------------
-  # BASE DE DONNÉES MySQL (Citizen)
-  # ----------------------------------------
+
+  # 3. MySQL (Citizen)
   mysql-db:
     image: mysql:8.0
     container_name: smart-city-mysql
@@ -61,7 +54,6 @@ services:
     ports:
       - "3306:3306"
     environment:
-      # Configuration unique (Pas besoin de script init complexe pour une seule DB)
       - MYSQL_ROOT_PASSWORD=root
       - MYSQL_DATABASE=citizen_db
       - MYSQL_USER=citizen_user
@@ -75,18 +67,18 @@ services:
       test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
       timeout: 20s
       retries: 10
-  
 
-  # ----------------------------------------
+  # ==========================================
+  # MICROSERVICES MÉTIERS
+  # ==========================================
+
   # SERVICE 1 : SMART MOBILITY (REST)
-  # ----------------------------------------
   mobility-service:
     build: ./backend/mobility-service
     container_name: mobility-service
     ports:
       - "8081:8081"
     environment:
-      # Connexion avec l'utilisateur MOBILITY
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/mobility_db
       - SPRING_DATASOURCE_USERNAME=mobility_user
       - SPRING_DATASOURCE_PASSWORD=mobility1922
@@ -97,16 +89,13 @@ services:
       postgres-db:
         condition: service_healthy
 
-  # ----------------------------------------
   # SERVICE 2 : AIR QUALITY (SOAP)
-  # ----------------------------------------
   air-quality-service:
     build: ./backend/air-quality-service
     container_name: air-quality-service
     ports:
       - "8082:8082"
     environment:
-      # Connexion avec l'utilisateur AIR
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/air_db
       - SPRING_DATASOURCE_USERNAME=air_user
       - SPRING_DATASOURCE_PASSWORD=air1922
@@ -117,9 +106,7 @@ services:
       postgres-db:
         condition: service_healthy
 
-  # ----------------------------------------
   # SERVICE 3 : SMART EMERGENCY (gRPC)
-  # ----------------------------------------
   emergency-service:
     build: ./backend/emergency-service
     container_name: emergency-service
@@ -135,33 +122,27 @@ services:
       - smart-city-net
     depends_on:
       - mongo-db
-  
-  # ----------------------------------------
+
   # SERVICE 4 : SMART ENERGY (GraphQL)
-  # ----------------------------------------
   energy-service:
     build: ./backend/energy-service
     container_name: energy-service
     ports:
       - "4000:4000"
     environment:
-      # Connexion avec l'utilisateur ENERGY
       - MONGO_URI=mongodb://energy_user:energy1922@mongo-db:27017/energy_db?authSource=energy_db
     networks:
       - smart-city-net
     depends_on:
       - mongo-db
 
-# ----------------------------------------
   # SERVICE 5 : SMART CITIZEN (REST)
-  # ----------------------------------------
   citizen-service:
     build: ./backend/citizen-service
     container_name: citizen-service
     ports:
       - "8083:8083"
     environment:
-      # Connexion au conteneur mysql-db
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/citizen_db?createDatabaseIfNotExist=true&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false
       - SPRING_DATASOURCE_USERNAME=citizen_user
       - SPRING_DATASOURCE_PASSWORD=citizen1922
@@ -172,9 +153,11 @@ services:
       mysql-db:
         condition: service_healthy
 
-  # ----------------------------------------
+  # ==========================================
+  # SERVICES D'INFRASTRUCTURE & ORCHESTRATION
+  # ==========================================
+
   # SERVICE 6 : AUTH SERVICE (Security)
-  # ----------------------------------------
   auth-service:
     build: ./backend/auth-service
     container_name: auth-service
@@ -184,32 +167,44 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/auth_db
       - SPRING_DATASOURCE_USERNAME=auth_user
       - SPRING_DATASOURCE_PASSWORD=auth1922
-      # La clé secrète pour signer les tokens
       - APPLICATION_SECURITY_JWT_SECRET_KEY=404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+      # Identifiants Admin par défaut
       - ADMIN_USERNAME=admin
-      - ADMIN_SECURE_PASSWORD=admin1922
+      - ADMIN_PASSWORD=admin1922
     networks:
       - smart-city-net
     depends_on:
       postgres-db:
         condition: service_healthy
 
-  # ----------------------------------------
+  # ORCHESTRATOR SERVICE (Le Cerveau)
+  # Il fait le lien entre REST, gRPC et SOAP
+  orchestrator-service:
+    build: ./backend/orchestrator-service
+    container_name: orchestrator-service
+    ports:
+      - "8084:8084"
+    networks:
+      - smart-city-net
+    depends_on:
+      - emergency-service
+      - air-quality-service
+
   # API GATEWAY (Point d'entrée unique)
-  # ----------------------------------------
   api-gateway:
     build: ./infrastructure/api-gateway
     container_name: api-gateway
     ports:
-      - "8080:8080"  # C'est le SEUL port qu'on exposera au public à la fin
+      - "8080:8080"
     networks:
       - smart-city-net
     depends_on:
+      - auth-service
       - mobility-service
-      - air-quality-service
       - citizen-service
       - energy-service
-      
+      - orchestrator-service
+
 volumes:
   postgres_data:
   mongo_data:

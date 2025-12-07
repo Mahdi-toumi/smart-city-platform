@@ -1,6 +1,5 @@
 package com.smartcity.mobility_service.model;
 
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.smartcity.mobility_service.model.enums.StatusTrafic;
 import com.smartcity.mobility_service.model.enums.TypeTransport;
@@ -13,7 +12,10 @@ import lombok.*;
 
 @Entity
 @Table(name = "trajets")
-@Data
+@Data // Génère Getters, Setters, ToString, EqualsAndHashCode
+@NoArgsConstructor // Constructeur vide (Obligatoire pour JPA)
+@AllArgsConstructor // Constructeur complet (Utile pour le Seeder)
+@Builder // Pattern Builder (Pratique pour créer des objets)
 public class Trajet {
 
     @Id
@@ -44,67 +46,11 @@ public class Trajet {
     private StatusTrafic statusTrafic;
 
     // Champ virtuel pour le Frontend (Lecture seule)
+    // Exemple de sortie JSON : "dureeLisible": "1h 15min"
     @JsonProperty("dureeLisible")
     public String getDureeLisible() {
         int h = dureeEstimee / 60;
         int m = dureeEstimee % 60;
         return h == 0 ? m + " min" : String.format("%dh %02dmin", h, m);
-    }
-
-    public Trajet() {}
-
-    public Trajet(Long id, String depart, String destination, int dureeEstimee, TypeTransport typeTransport, StatusTrafic statusTrafic) {
-        this.id = id;
-        this.depart = depart;
-        this.destination = destination;
-        this.dureeEstimee = dureeEstimee;
-        this.typeTransport = typeTransport;
-        this.statusTrafic = statusTrafic;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public @NotBlank(message = "Le point de départ est obligatoire") String getDepart() {
-        return depart;
-    }
-
-    public @NotBlank(message = "La destination est obligatoire") String getDestination() {
-        return destination;
-    }
-
-    public @NotNull(message = "Le type de transport est obligatoire") TypeTransport getTypeTransport() {
-        return typeTransport;
-    }
-
-    @Min(value = 1, message = "La durée doit être d'au moins 1 min")
-    @Max(value = 1440, message = "La durée ne peut excéder 24h")
-    public int getDureeEstimee() {
-        return dureeEstimee;
-    }
-
-    public @NotNull(message = "Le statut du trafic est obligatoire") StatusTrafic getStatusTrafic() {
-        return statusTrafic;
-    }
-
-    public void setDepart(@NotBlank(message = "Le point de départ est obligatoire") String depart) {
-        this.depart = depart;
-    }
-
-    public void setDestination(@NotBlank(message = "La destination est obligatoire") String destination) {
-        this.destination = destination;
-    }
-
-    public void setTypeTransport(@NotNull(message = "Le type de transport est obligatoire") TypeTransport typeTransport) {
-        this.typeTransport = typeTransport;
-    }
-
-    public void setDureeEstimee(@Min(value = 1, message = "La durée doit être d'au moins 1 min") @Max(value = 1440, message = "La durée ne peut excéder 24h") int dureeEstimee) {
-        this.dureeEstimee = dureeEstimee;
-    }
-
-    public void setStatusTrafic(@NotNull(message = "Le statut du trafic est obligatoire") StatusTrafic statusTrafic) {
-        this.statusTrafic = statusTrafic;
     }
 }

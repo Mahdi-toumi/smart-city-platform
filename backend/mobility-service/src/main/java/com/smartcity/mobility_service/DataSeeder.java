@@ -1,6 +1,5 @@
 package com.smartcity.mobility_service;
 
-
 import com.smartcity.mobility_service.model.Trajet;
 import com.smartcity.mobility_service.model.enums.StatusTrafic;
 import com.smartcity.mobility_service.model.enums.TypeTransport;
@@ -19,12 +18,16 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        // On ne remplit que si la base est vide
         if (repository.count() == 0) {
-            repository.save(new Trajet(null, "Gare Centrale", "Université",  25,TypeTransport.BUS, StatusTrafic.FLUIDE));
-            repository.save(new Trajet(null, "Place d'Armes", "Hôpital Nord",  12,TypeTransport.METRO, StatusTrafic.DENSE));
-            repository.save(new Trajet(null, "Aéroport", "Centre Ville", 40,TypeTransport.TRAMWAY,  StatusTrafic.PERTURBE));
-            System.out.println("✅ Base de données Mobilité initialisée avec succès !");
+            // Utilisation du constructeur AllArgs généré par Lombok
+            repository.save(new Trajet(null, "Gare Centrale", "Université", TypeTransport.BUS,25,  StatusTrafic.FLUIDE));
+            repository.save(new Trajet(null, "Place d'Armes", "Hôpital Nord",TypeTransport.METRO, 12,  StatusTrafic.DENSE));
+            repository.save(new Trajet(null, "Aéroport", "Centre Ville",TypeTransport.TRAMWAY, 40,  StatusTrafic.PERTURBE));
+
+            // Ajout d'un trajet "ARRET" pour tester le statut global
+            repository.save(new Trajet(null, "Banlieue Sud", "Stade",TypeTransport.TRAIN, 60,  StatusTrafic.ARRET));
+
+            System.out.println("Base de données Mobilité initialisée avec succès");
         }
     }
 }

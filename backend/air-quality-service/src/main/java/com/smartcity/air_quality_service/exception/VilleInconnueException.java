@@ -5,7 +5,6 @@ import jakarta.xml.ws.WebFault;
 @WebFault(name = "VilleInconnueFault", targetNamespace = "http://smartcity.com/air-quality")
 public class VilleInconnueException extends Exception {
 
-    // Constructeur nécessaire pour JAX-WS
     public VilleInconnueException(String message) {
         super(message);
     }

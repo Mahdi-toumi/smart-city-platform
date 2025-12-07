@@ -24,8 +24,9 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**").permitAll()   // Public
-                        .requestMatchers("/admin/**").hasAuthority("ADMIN") // Protégé Admin
+                        .requestMatchers("/auth/register", "/auth/token").permitAll() // Seuls ceux-là sont publics
+                        .requestMatchers("/auth/me").authenticated() // Celui-là requiert un token
+                        .requestMatchers("/admin/**").hasAuthority("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

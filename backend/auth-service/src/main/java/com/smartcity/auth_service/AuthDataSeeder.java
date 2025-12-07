@@ -19,7 +19,7 @@ public class AuthDataSeeder implements CommandLineRunner {
     // Injection des valeurs depuis la configuration (application.properties ou Docker)
     private final String adminUsername = System.getenv("ADMIN_USERNAME");
 
-    private final String adminPassword = System.getenv("ADMIN_SECURE_PASSWORD");;
+    private final String adminPassword = System.getenv("ADMIN_PASSWORD");;
 
     @Override
     public void run(String... args) {

@@ -1,18 +1,21 @@
 package com.smartcity.citizen_service.repository;
 
-
 import com.smartcity.citizen_service.model.Reclamation;
 import com.smartcity.citizen_service.model.enums.StatutReclamation;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
 import java.util.List;
 
+@Repository
 public interface ReclamationRepository extends JpaRepository<Reclamation, Long> {
-    // Historique d'un citoyen
+
+    // Pour le citoyen : Voir SES réclamations
     List<Reclamation> findByCitoyenId(String citoyenId);
 
-    // Filtre pour les Admins (ex: Voir tout ce qui est OUVERT)
+    // Pour l'admin : Filtrer par statut
     List<Reclamation> findByStatut(StatutReclamation statut);
 
-    // Compteur pour les Statistiques
+    // Pour les stats : Compter par statut
     long countByStatut(StatutReclamation statut);
 }

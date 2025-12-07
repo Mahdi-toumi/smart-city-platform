@@ -1,17 +1,16 @@
-import { Consommation } from '../models/Consommation.js';
+import { Consommation } from './models/Consommation.js';
 
 export const resolvers = {
     Query: {
+        // 1. Historique pour tableaux/courbes
         getHistorique: async (_, { quartier, ressource }) => {
             const filtre = { quartier };
             if (ressource) filtre.typeRessource = ressource;
-
-            // Retourne les données triées par date (plus récent d'abord)
             return await Consommation.find(filtre).sort({ timestamp: -1 });
         },
 
+        // 2. Comparaison pour Diagrammes en barres
         comparerQuartiers: async (_, { quartier1, quartier2 }) => {
-            // Agrégation MongoDB pour calculer la somme totale
             const getTotal = async (q) => {
                 const result = await Consommation.aggregate([
                     { $match: { quartier: q } },
@@ -22,13 +21,26 @@ export const resolvers = {
 
             const total1 = await getTotal(quartier1);
             const total2 = await getTotal(quartier2);
+            const diff = Math.abs(total1 - total2);
 
-            let verdict = "";
-            if (total1 > total2) verdict = `${quartier1} consomme plus (${total1} vs ${total2})`;
-            else if (total2 > total1) verdict = `${quartier2} consomme plus (${total2} vs ${total1})`;
-            else verdict = "Consommation identique.";
+            let message = "Consommation identique.";
+            if (total1 > total2) message = `${quartier1} consomme plus (+${diff.toFixed(2)})`;
+            else if (total2 > total1) message = `${quartier2} consomme plus (+${diff.toFixed(2)})`;
 
-            return verdict;
+            return {
+                quartier1,
+                total1,
+                quartier2,
+                total2,
+                difference: parseFloat(diff.toFixed(2)),
+                message
+            };
+        },
+
+        // 3. Liste des quartiers pour le <select>
+        getQuartiers: async () => {
+            // Récupère les noms uniques de quartiers
+            return await Consommation.distinct('quartier');
         }
     },
 

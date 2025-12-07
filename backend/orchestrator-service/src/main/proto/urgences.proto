@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package urgences;
+
+// --- CONFIGURATION JAVA OBLIGATOIRE ---
+option java_multiple_files = true;
+option java_package = "com.smartcity.orchestrator.grpc";
+option java_outer_classname = "UrgencesProto";
+// --------------------------------------
+
+service UrgenceService {
+  rpc SignalerUrgence (UrgenceRequest) returns (UrgenceResponse);
+  rpc SuivreIntervention (SuiviRequest) returns (stream SuiviUpdate);
+  rpc HistoriqueUrgences (HistoriqueRequest) returns (HistoriqueResponse);
+}
+
+enum TypeUrgence {
+  INCONNU = 0;
+  ACCIDENT_ROUTE = 1;
+  INCENDIE = 2;
+  MALAISE = 3;
+  INONDATION = 4;
+  FUITE_GAZ = 5;
+}
+
+enum StatutIntervention {
+  EN_ATTENTE = 0;
+  EN_COURS = 1;
+  TERMINE = 2;
+}
+
+message Coordonnees {
+  double latitude = 1;
+  double longitude = 2;
+}
+
+message UrgenceRequest {
+  TypeUrgence type = 1;
+  Coordonnees position = 2;
+  string description = 3;
+  string citoyen_id = 4;
+}
+
+message UrgenceResponse {
+  string id = 1;
+  bool prise_en_compte = 2;
+  string message = 3;
+  StatutIntervention statut = 4;
+}
+
+message SuiviRequest {
+  string id_urgence = 1;
+}
+
+message SuiviUpdate {
+  Coordonnees position_actuelle = 1;
+  string message_status = 2;
+  int32 temps_estime_arrivee = 3;
+}
+
+message HistoriqueRequest {
+  string citoyen_id = 1;
+}
+
+message HistoriqueResponse {
+  repeated UrgenceRequest urgences = 1;
+}

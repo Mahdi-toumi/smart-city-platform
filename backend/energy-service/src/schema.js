@@ -1,6 +1,5 @@
 export const typeDefs = `#graphql
   
-  # Définition des types
   enum TypeRessource {
     ELECTRICITE
     EAU
@@ -15,18 +14,29 @@ export const typeDefs = `#graphql
     timestamp: String
   }
 
-  # --- QUERIES (Lecture) ---
-  type Query {
-    "Récupérer l'historique d'un quartier pour une ressource donnée"
-    getHistorique(quartier: String!, ressource: TypeRessource): [Consommation]
-
-    "Comparer la consommation totale de deux quartiers"
-    comparerQuartiers(quartier1: String!, quartier2: String!): String
+  # Nouvel objet pour les graphiques Frontend
+  type ComparaisonResult {
+    quartier1: String!
+    total1: Float!
+    quartier2: String!
+    total2: Float!
+    difference: Float!
+    message: String!
   }
 
-  # --- MUTATIONS (Écriture) ---
+  type Query {
+    "Récupérer l'historique d'un quartier (Tableau de données)"
+    getHistorique(quartier: String!, ressource: TypeRessource): [Consommation]
+
+    "Comparer deux quartiers (Pour les graphiques en barres)"
+    comparerQuartiers(quartier1: String!, quartier2: String!): ComparaisonResult
+
+    "Liste des quartiers disponibles (Pour le menu déroulant)"
+    getQuartiers: [String]
+  }
+
   type Mutation {
-    "Ajouter un relevé (Simulation capteur)"
+    "Ajouter un relevé"
     ajouterMesure(quartier: String!, ressource: TypeRessource!, valeur: Float!): Consommation
   }
 `;
