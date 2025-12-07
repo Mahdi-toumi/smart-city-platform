@@ -178,7 +178,6 @@ services:
         condition: service_healthy
 
   # ORCHESTRATOR SERVICE (Le Cerveau)
-  # Il fait le lien entre REST, gRPC et SOAP
   orchestrator-service:
     build: ./backend/orchestrator-service
     container_name: orchestrator-service
@@ -204,6 +203,23 @@ services:
       - citizen-service
       - energy-service
       - orchestrator-service
+
+  # ==========================================
+  # FRONTEND (React)
+  # ==========================================
+  
+  client:
+    build:
+      context: ./frontend  
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: always
+    ports:
+      - "3000:80" # Accessible sur http://localhost:3000
+    networks:
+      - smart-city-net
+    depends_on:
+      - api-gateway
 
 volumes:
   postgres_data:

@@ -7,7 +7,7 @@ import L from 'leaflet';
 import toast from 'react-hot-toast';
 import {
     FaAmbulance, FaMapMarkerAlt, FaClock, FaExclamationTriangle,
-    FaCheckCircle, FaHistory
+    FaCheckCircle, FaHistory, FaPhoneAlt
 } from 'react-icons/fa';
 
 // Correction des icônes Leaflet
@@ -64,6 +64,19 @@ const Emergency = () => {
         api.get(`/api/orchestrator/history?citoyenId=${user.username}`)
             .then(res => setHistory(res.data))
             .catch(err => console.error("Erreur chargement historique", err));
+    };
+
+    const formatSafeDate = (dateString, type = 'time') => {
+        if (!dateString) return type === 'time' ? "À l'instant" : "Aujourd'hui";
+
+        const date = new Date(dateString);
+        // Si la date est invalide (backend envoie null ou mauvais format)
+        if (isNaN(date.getTime())) return type === 'time' ? "À l'instant" : "Aujourd'hui";
+
+        if (type === 'time') {
+            return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        }
+        return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
     };
 
     // 2. Lancer l'alerte (POST) avec TOAST
@@ -159,36 +172,40 @@ const Emergency = () => {
     };
 
     return (
-        <div className="fade-in space-y-6 h-[calc(100vh-120px)]">
+        <div className="fade-in space-y-6 min-h-screen pb-6 p-6">
 
             {/* HEADER */}
-            <div className="bg-white rounded-xl shadow-md border-2 border-gray-300 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-300 p-6">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                            <div className="p-3 bg-gradient-to-r from-red-600 to-red-500 rounded-lg text-white">
+                            <div className="p-3 bg-red-100 rounded-lg text-red-600 shadow-sm border border-red-200">
                                 <FaAmbulance className="text-2xl" />
                             </div>
                             Service d'Urgence
                         </h1>
-                        <p className="text-gray-600 mt-2">Alertez les secours et suivez leur arrivée en temps réel</p>
+                        <p className="text-gray-500 mt-2 ml-1">Alertez les secours et suivez leur arrivée en temps réel.</p>
                     </div>
 
-                    {activeAlertId && (
-                        <div className="px-6 py-3 bg-red-100 text-red-700 rounded-lg font-bold 
-                                      flex items-center gap-2 animate-pulse">
+                    {activeAlertId ? (
+                        <div className="px-6 py-3 bg-red-50 text-red-700 rounded-lg font-bold border border-red-200 
+                                      flex items-center gap-3 shadow-sm animate-pulse">
                             <div className="w-3 h-3 bg-red-600 rounded-full"></div>
                             ALERTE ACTIVE
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-600 rounded-lg font-semibold border border-gray-200">
+                            <FaPhoneAlt /> <span>Urgence vitale ? Appelez le 190</span>
                         </div>
                     )}
                 </div>
             </div>
 
             {/* CONTENU PRINCIPAL */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" style={{ height: 'calc(100% - 120px)' }}>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" style={{ height: 'calc(100vh - 200px)' }}>
 
                 {/* --- COLONNE GAUCHE : CARTE (2/3) --- */}
-                <div className="lg:col-span-2 bg-white rounded-xl shadow-md border-2 border-gray-300 overflow-hidden relative">
+                <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-300 overflow-hidden relative">
                     <MapContainer
                         center={myPosition}
                         zoom={13}
@@ -235,38 +252,40 @@ const Emergency = () => {
 
                     {/* PANEL LIVE TRACKING (Sur la carte) */}
                     {activeAlertId && (
-                        <div className="absolute top-4 right-4 bg-white rounded-xl shadow-lg 
-                                      border-2 border-gray-300 w-80 z-[1000] overflow-hidden">
-                            {/* En-tête avec gradient rouge */}
-                            <div className="bg-gradient-to-r from-red-600 to-red-500 p-4">
+                        <div className="absolute top-4 right-4 bg-white rounded-xl shadow-xl 
+                                      border border-gray-800 w-80 z-[1000] overflow-hidden">
+                            {/* En-tête */}
+                            <div className="bg-red-600 p-4">
                                 <h3 className="font-bold text-white flex items-center gap-2 text-lg">
-                                    <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                                    <span className="loading loading-spinner loading-sm text-white"></span>
                                     SECOURS EN ROUTE
                                 </h3>
                             </div>
 
                             <div className="p-6 space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-gray-600 font-semibold">Statut</span>
-                                    <span className="text-gray-900 font-bold">{liveStatus}</span>
+                                <div className="flex flex-col gap-1">
+                                    <span className="text-xs font-bold text-gray-400 uppercase">Statut Actuel</span>
+                                    <span className="text-gray-900 font-bold text-lg leading-tight">{liveStatus}</span>
                                 </div>
 
                                 {eta !== null && eta > 0 && (
-                                    <div className="border-t-2 border-gray-300 pt-4">
-                                        <p className="text-sm text-gray-600 mb-2 flex items-center gap-2">
-                                            <FaClock /> Temps d'arrivée estimé
-                                        </p>
-                                        <div className="text-5xl font-bold text-red-600 text-center">
-                                            {eta} min
+                                    <div className="border-t border-gray-100 pt-4 mt-2">
+                                        <div className="flex justify-between items-center">
+                                            <p className="text-sm text-gray-500 flex items-center gap-2">
+                                                <FaClock /> Temps estimé
+                                            </p>
+                                            <span className="text-3xl font-black text-red-600">
+                                                {eta}<span className="text-sm font-normal text-gray-400 ml-1">min</span>
+                                            </span>
                                         </div>
                                     </div>
                                 )}
 
                                 {eta !== null && eta <= 0 && (
-                                    <div className="bg-green-100 text-green-700 p-4 rounded-lg 
-                                                  font-bold text-center flex items-center justify-center gap-2">
+                                    <div className="bg-green-50 text-green-700 p-4 rounded-lg border border-green-200
+                                                  font-bold text-center flex items-center justify-center gap-2 animate-bounce">
                                         <FaCheckCircle className="text-2xl" />
-                                        ARRIVÉE !
+                                        ARRIVÉE SUR LES LIEUX !
                                     </div>
                                 )}
                             </div>
@@ -275,26 +294,25 @@ const Emergency = () => {
                 </div>
 
                 {/* --- COLONNE DROITE : FORMULAIRE & HISTORIQUE (1/3) --- */}
-                <div className="flex flex-col gap-6 overflow-y-auto">
+                <div className="flex flex-col gap-6 h-full overflow-hidden">
 
                     {/* FORMULAIRE SOS */}
-                    <div className="bg-white rounded-xl shadow-md border-2 border-red-300 overflow-hidden">
-                        <div className="bg-gradient-to-r from-red-600 to-red-500 p-4">
-                            <h2 className="font-bold text-xl text-white flex items-center gap-2">
-                                <FaExclamationTriangle />
-                                LANCER ALERTE
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-300 overflow-hidden flex-shrink-0">
+                        <div className="bg-gray-50 p-4 border-b border-gray-300 flex justify-between items-center">
+                            <h2 className="font-bold text-lg text-gray-800 flex items-center gap-2">
+                                <FaExclamationTriangle className="text-red-500" />
+                                Lancer une Alerte
                             </h2>
                         </div>
 
-                        <div className="p-6">
+                        <div className="p-5">
                             <form onSubmit={handleSos} className="space-y-4">
                                 <div>
-                                    <label className="text-sm text-gray-600 font-semibold mb-2 block">
+                                    <label className="text-xs font-bold text-gray-500 uppercase mb-1.5 block">
                                         Type d'urgence *
                                     </label>
                                     <select
-                                        className="w-full px-4 py-3 rounded-lg border-2 border-gray-300 bg-white text-gray-900
-                                                 focus:border-red-500 focus:outline-none transition-all"
+                                        className="select p-4 w-full bg-white border border-gray-300 focus:border-red-500 focus:ring-1 focus:ring-red-500 text-gray-900 h-12"
                                         required
                                         value={selectedType}
                                         onChange={(e) => setSelectedType(e.target.value)}
@@ -305,50 +323,41 @@ const Emergency = () => {
                                 </div>
 
                                 <div>
-                                    <label className="text-sm text-gray-600 font-semibold mb-2 block">
+                                    <label className="text-xs font-bold text-gray-500 uppercase mb-1.5 block">
                                         Description
                                     </label>
                                     <textarea
-                                        className="w-full px-4 py-3 rounded-lg border-2 border-gray-300 bg-white text-gray-900
-                                                 focus:border-red-500 focus:outline-none transition-all h-24"
+                                        className="textarea p-4 w-full bg-white border border-gray-300 focus:border-red-500 focus:ring-1 focus:ring-red-500 text-gray-900 h-24"
                                         placeholder="Détails de l'urgence..."
                                         value={description}
                                         onChange={(e) => setDescription(e.target.value)}
                                     ></textarea>
                                 </div>
 
-                                <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-3">
-                                    <div className="flex items-start gap-2">
-                                        <FaMapMarkerAlt className="text-yellow-600 mt-1 flex-shrink-0" />
-                                        <div>
-                                            <p className="text-sm text-yellow-800 font-semibold">
-                                                Position détectée
-                                            </p>
-                                            <p className="text-xs text-yellow-700">
-                                                Tunis Centre ({myPosition[0].toFixed(4)}, {myPosition[1].toFixed(4)})
-                                            </p>
-                                        </div>
+                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-3">
+                                    <FaMapMarkerAlt className="text-yellow-600 mt-1 flex-shrink-0" />
+                                    <div>
+                                        <p className="text-xs font-bold text-yellow-800 uppercase">Position détectée</p>
+                                        <p className="text-xs text-yellow-700 font-mono mt-0.5">
+                                            {myPosition[0].toFixed(4)}, {myPosition[1].toFixed(4)}
+                                        </p>
                                     </div>
                                 </div>
 
                                 <button
                                     type="submit"
-                                    className="w-full px-6 py-4 bg-red-600 text-white rounded-lg font-bold 
-                                             text-lg hover:bg-red-700 transition-all shadow-lg
-                                             disabled:opacity-50 disabled:cursor-not-allowed
-                                             flex items-center justify-center gap-2"
+                                    className="btn w-full font-bold text-red-600 border border-red-600 shadow-md hover:shadow-lg transition-all disabled:opacity-50"
                                     disabled={loadingSOS || activeAlertId}
                                 >
                                     {loadingSOS ? (
                                         <>
-                                            <div className="w-5 h-5 border-3 border-white border-t-transparent 
-                                                          rounded-full animate-spin"></div>
+                                            <span className="loading loading-spinner loading-sm"></span>
                                             Envoi en cours...
                                         </>
                                     ) : (
                                         <>
-                                            <FaAmbulance className="text-xl" />
-                                            SOS - ENVOYER SECOURS
+                                            <FaAmbulance className="text-lg" />
+                                            ENVOYER SECOURS
                                         </>
                                     )}
                                 </button>
@@ -356,41 +365,40 @@ const Emergency = () => {
                         </div>
                     </div>
 
-                    {/* HISTORIQUE */}
-                    <div className="bg-white rounded-xl shadow-md border-2 border-gray-300 flex-1 overflow-hidden">
-                        <div className="bg-gradient-to-r from-slate-900 to-slate-700 p-4">
-                            <h2 className="font-bold text-lg text-white flex items-center gap-2">
-                                <FaHistory />
-                                Historique
+                    {/* HISTORIQUE (Scrollable) */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-300 flex-1 overflow-hidden flex flex-col">
+                        <div className="bg-gray-50 p-4 border-b border-gray-300">
+                            <h2 className="font-bold text-sm text-gray-600 uppercase flex items-center gap-2">
+                                <FaHistory /> Historique
                             </h2>
                         </div>
 
-                        <div className="p-4 overflow-y-auto max-h-80">
+                        <div className="p-0 overflow-y-auto flex-1">
                             {history.length === 0 ? (
-                                <div className="text-center py-8">
-                                    <FaHistory className="text-4xl text-gray-300 mx-auto mb-2" />
+                                <div className="text-center py-10 flex flex-col items-center">
+                                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                                        <FaHistory className="text-gray-400" />
+                                    </div>
                                     <p className="text-gray-400 text-sm">Aucune alerte passée</p>
                                 </div>
                             ) : (
-                                <div className="space-y-3">
+                                <div className="divide-y divide-gray-100">
                                     {history.map((h, i) => (
-                                        <div key={i}
-                                            className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg 
-                                                      border-2 border-gray-200 hover:border-gray-300 transition-all">
-                                            <div className="bg-red-100 text-red-600 p-2 rounded-full flex-shrink-0">
+                                        <div key={i} className="p-4 hover:bg-gray-50 transition-colors flex gap-3">
+                                            <div className="bg-red-50 text-red-600 w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border border-red-100">
                                                 <FaAmbulance />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <div className="font-bold text-sm text-gray-900">{h.type}</div>
-                                                <div className="text-xs text-gray-600 truncate">{h.description}</div>
-                                                <div className="text-xs text-gray-400 mt-1">
-                                                    {new Date(h.dateCreation).toLocaleDateString('fr-FR', {
-                                                        day: '2-digit',
-                                                        month: 'short',
-                                                        hour: '2-digit',
-                                                        minute: '2-digit'
-                                                    })}
+                                                <div className="flex justify-between items-start">
+                                                    <p className="font-bold text-sm text-gray-900">{h.type}</p>
+                                                    <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                                                        {formatSafeDate(h.dateCreation, 'time')}
+                                                    </span>
                                                 </div>
+                                                <p className="text-xs text-gray-500 truncate mt-0.5">{h.description || "Pas de description"}</p>
+                                                <p className="text-[10px] text-gray-400 mt-1">
+                                                    {formatSafeDate(h.dateCreation, 'date')}
+                                                </p>
                                             </div>
                                         </div>
                                     ))}

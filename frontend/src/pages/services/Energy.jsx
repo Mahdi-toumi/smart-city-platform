@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import {
-    FaBolt, FaChartBar, FaLeaf, FaHistory, FaBurn, FaTint,
-    FaPlus, FaSave, FaExchangeAlt, FaCalendarAlt, FaChartLine
+    FaBolt, FaLeaf, FaHistory, FaBurn, FaTint,
+    FaPlus, FaSave, FaExchangeAlt, FaChartLine, FaFilter
 } from 'react-icons/fa';
 import { Bar } from 'react-chartjs-2';
 import {
@@ -23,9 +23,12 @@ const Energy = () => {
     const [loadingCompare, setLoadingCompare] = useState(false);
 
     // Historique
-    const [selectedHistoryQuartier, setSelectedHistoryQuartier] = useState('');
+    const [selectedHistoryQuartier, setSelectedHistoryQuartier] = useState('Centre-Ville');
     const [historyData, setHistoryData] = useState([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
+
+    // Filtre par Ressource
+    const [filterResource, setFilterResource] = useState('ALL');
 
     // Création
     const [formMeasure, setFormMeasure] = useState({
@@ -35,9 +38,12 @@ const Energy = () => {
     });
     const [loadingAdd, setLoadingAdd] = useState(false);
 
+    const modalRef = useRef(null);
+
     // --- 1. CHARGEMENT INITIAL ---
     useEffect(() => {
         fetchQuartiers();
+        handleLoadHistory('Centre-Ville');
     }, []);
 
     const fetchQuartiers = async () => {
@@ -69,17 +75,13 @@ const Energy = () => {
 
         try {
             await api.post('/graphql', { query: mutation });
-
             toast.success("Mesure enregistrée avec succès ! ⚡");
-            document.getElementById('add_modal').close();
-
+            modalRef.current.close();
             setFormMeasure({ quartier: '', ressource: 'ELECTRICITE', valeur: '' });
-
             fetchQuartiers();
             if (selectedHistoryQuartier === formMeasure.quartier) {
                 handleLoadHistory(formMeasure.quartier);
             }
-
         } catch (err) {
             toast.error("Erreur lors de l'enregistrement.");
         } finally {
@@ -130,11 +132,19 @@ const Energy = () => {
             const res = await api.post('/graphql', { query });
             setHistoryData(res.data.data.getHistorique);
         } catch (err) {
-            toast.error("Impossible de charger l'historique");
+            if (quartier !== 'Centre-Ville') {
+                toast.error("Impossible de charger l'historique");
+            }
         } finally {
             setLoadingHistory(false);
         }
     };
+
+    // --- LOGIQUE DE FILTRAGE ---
+    const filteredHistory = historyData.filter(item => {
+        if (filterResource === 'ALL') return true;
+        return item.typeRessource === filterResource;
+    });
 
     // --- HELPERS ---
     const getResourceIcon = (type) => {
@@ -148,9 +158,9 @@ const Energy = () => {
 
     const getResourceColor = (type) => {
         switch (type) {
-            case 'ELECTRICITE': return 'bg-yellow-100 text-yellow-700';
-            case 'EAU': return 'bg-blue-100 text-blue-700';
-            case 'GAZ': return 'bg-orange-100 text-orange-700';
+            case 'ELECTRICITE': return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+            case 'EAU': return 'bg-blue-100 text-blue-800 border border-blue-200';
+            case 'GAZ': return 'bg-orange-100 text-orange-800 border border-orange-200';
             default: return 'bg-gray-100 text-gray-700';
         }
     };
@@ -172,9 +182,7 @@ const Energy = () => {
         maintainAspectRatio: false,
         responsive: true,
         plugins: {
-            legend: {
-                display: false
-            },
+            legend: { display: false },
             tooltip: {
                 backgroundColor: 'rgba(0, 0, 0, 0.8)',
                 padding: 12,
@@ -189,17 +197,8 @@ const Energy = () => {
             }
         },
         scales: {
-            y: {
-                beginAtZero: true,
-                grid: {
-                    color: 'rgba(0, 0, 0, 0.05)'
-                }
-            },
-            x: {
-                grid: {
-                    display: false
-                }
-            }
+            y: { beginAtZero: true, grid: { color: 'rgba(0, 0, 0, 0.05)' } },
+            x: { grid: { display: false } }
         }
     };
 
@@ -210,175 +209,106 @@ const Energy = () => {
     const gazCount = historyData.filter(h => h.typeRessource === 'GAZ').length;
 
     return (
-        <div className="fade-in space-y-6">
+        <div className="fade-in space-y-8 p-6">
 
             {/* HEADER */}
-            <div className="bg-white rounded-xl shadow-md border-2 border-gray-300 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-300 p-6">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                            <div className="p-3 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg text-white">
+                            <div className="p-3 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg text-white shadow-md">
                                 <FaBolt className="text-2xl" />
                             </div>
                             Smart Energy
                         </h1>
-                        <p className="text-gray-600 mt-2">Supervision énergétique et gestion des ressources</p>
+                        <p className="text-gray-500 mt-2 ml-1">Supervision énergétique et gestion des ressources.</p>
                     </div>
+
                     <button
-                        className="px-6 py-3 bg-slate-900 text-white rounded-lg font-semibold 
-                                 hover:bg-slate-800 transition-all shadow-md flex items-center gap-2"
-                        onClick={() => document.getElementById('add_modal').showModal()}
+                        className="btn btn-primary px-6 py-3 rounded-lg font-bold shadow-lg flex items-center text-black border border-gray-800 hover:scale-105 transition-transform"
+                        onClick={() => modalRef.current.showModal()}
                     >
-                        <FaPlus /> Ajouter une mesure
+                        <FaPlus className="mr-2" /> Ajouter une mesure
                     </button>
                 </div>
             </div>
 
             {/* STATISTIQUES */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-white rounded-xl shadow-md border-2 border-gray-300 p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-gray-500 mb-1">Total Mesures</p>
-                            <p className="text-4xl font-bold text-gray-900">{totalMeasures}</p>
-                        </div>
-                        <div className="p-4 bg-purple-100 rounded-lg">
-                            <FaChartLine className="text-3xl text-purple-600" />
-                        </div>
-                    </div>
+                {/* Total */}
+                <div className="bg-white rounded-xl shadow-sm border-2 border-gray-300 border-l-8 border-l-purple-500 p-6 flex items-center justify-between">
+                    <div><p className="text-sm font-semibold text-gray-500 uppercase">Total Mesures</p><p className="text-4xl font-extrabold text-gray-900 mt-1">{totalMeasures}</p></div>
+                    <div className="p-4 bg-purple-100 rounded-full border border-purple-200"><FaChartLine className="text-3xl text-purple-600" /></div>
                 </div>
-
-                <div className="bg-white rounded-xl shadow-md border-2 border-gray-300 p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-gray-500 mb-1">Électricité</p>
-                            <p className="text-4xl font-bold text-yellow-600">{electriciteCount}</p>
-                        </div>
-                        <div className="p-4 bg-yellow-100 rounded-lg">
-                            <FaBolt className="text-3xl text-yellow-600" />
-                        </div>
-                    </div>
+                {/* Élec */}
+                <div className="bg-white rounded-xl shadow-sm border-2 border-gray-300 border-l-8 border-l-yellow-500 p-6 flex items-center justify-between">
+                    <div><p className="text-sm font-semibold text-gray-500 uppercase">Électricité</p><p className="text-4xl font-extrabold text-yellow-600 mt-1">{electriciteCount}</p></div>
+                    <div className="p-4 bg-yellow-100 rounded-full border border-yellow-200"><FaBolt className="text-3xl text-yellow-600" /></div>
                 </div>
-
-                <div className="bg-white rounded-xl shadow-md border-2 border-gray-300 p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-gray-500 mb-1">Eau</p>
-                            <p className="text-4xl font-bold text-blue-600">{eauCount}</p>
-                        </div>
-                        <div className="p-4 bg-blue-100 rounded-lg">
-                            <FaTint className="text-3xl text-blue-600" />
-                        </div>
-                    </div>
+                {/* Eau */}
+                <div className="bg-white rounded-xl shadow-sm border-2 border-gray-300 border-l-8 border-l-blue-500 p-6 flex items-center justify-between">
+                    <div><p className="text-sm font-semibold text-gray-500 uppercase">Eau</p><p className="text-4xl font-extrabold text-blue-600 mt-1">{eauCount}</p></div>
+                    <div className="p-4 bg-blue-100 rounded-full border border-blue-200"><FaTint className="text-3xl text-blue-600" /></div>
                 </div>
-
-                <div className="bg-white rounded-xl shadow-md border-2 border-gray-300 p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-gray-500 mb-1">Gaz</p>
-                            <p className="text-4xl font-bold text-orange-600">{gazCount}</p>
-                        </div>
-                        <div className="p-4 bg-orange-100 rounded-lg">
-                            <FaBurn className="text-3xl text-orange-600" />
-                        </div>
-                    </div>
+                {/* Gaz */}
+                <div className="bg-white rounded-xl shadow-sm border-2 border-gray-300 border-l-8 border-l-orange-500 p-6 flex items-center justify-between">
+                    <div><p className="text-sm font-semibold text-gray-500 uppercase">Gaz</p><p className="text-4xl font-extrabold text-orange-600 mt-1">{gazCount}</p></div>
+                    <div className="p-4 bg-orange-100 rounded-full border border-orange-200"><FaBurn className="text-3xl text-orange-600" /></div>
                 </div>
             </div>
 
-            {/* SECTION COMPARATEUR */}
-            <div className="bg-white rounded-xl shadow-md border-2 border-gray-300 overflow-hidden">
-                <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-4">
-                    <h2 className="font-bold text-xl text-white flex items-center gap-2">
-                        <FaExchangeAlt />
-                        Comparateur de Quartiers
+            {/* COMPARATEUR */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-300 overflow-hidden">
+                <div className="bg-gray-50 p-4 border-b border-gray-200">
+                    <h2 className="font-bold text-lg text-gray-800 flex items-center gap-2">
+                        <FaExchangeAlt className="text-blue-500" /> Comparateur de Quartiers
                     </h2>
                 </div>
-
                 <div className="p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 items-end">
                         <div>
-                            <label className="text-sm text-gray-600 font-semibold mb-2 block">
-                                Quartier A
-                            </label>
-                            <select
-                                className="w-full px-4 py-3 rounded-lg border-2 border-gray-300 bg-white text-gray-900
-                                         focus:border-slate-900 focus:outline-none transition-all
-                                         bg-white"
-                                value={selectedQ1}
-                                onChange={(e) => setSelectedQ1(e.target.value)}
-                            >
+                            <label className="text-xs font-bold text-gray-500 uppercase mb-1.5 block">Quartier A</label>
+                            {/* AJOUT DE p-4 */}
+                            <select className="select w-full p-4 bg-white border border-gray-300 focus:border-blue-500 text-gray-900 h-12 font-medium"
+                                value={selectedQ1} onChange={(e) => setSelectedQ1(e.target.value)}>
                                 <option value="">Sélectionner...</option>
                                 {quartiers.map(q => <option key={q} value={q}>{q}</option>)}
                             </select>
                         </div>
-
-                        <div className="flex items-end justify-center pb-3">
-                            <div className="text-3xl font-bold text-blue-500">VS</div>
-                        </div>
-
+                        <div className="flex justify-center pb-2"><div className="bg-blue-50 text-blue-600 font-bold px-3 py-1 rounded-full text-sm">VS</div></div>
                         <div>
-                            <label className="text-sm text-gray-600 font-semibold mb-2 block">
-                                Quartier B
-                            </label>
-                            <select
-                                className="w-full px-4 py-3 rounded-lg border-2 border-gray-300 bg-white text-gray-900
-                                         focus:border-slate-900 focus:outline-none transition-all
-                                         bg-white"
-                                value={selectedQ2}
-                                onChange={(e) => setSelectedQ2(e.target.value)}
-                            >
+                            <label className="text-xs font-bold text-gray-500 uppercase mb-1.5 block">Quartier B</label>
+                            {/* AJOUT DE p-4 */}
+                            <select className="select w-full p-4 bg-white border border-gray-300 focus:border-blue-500 text-gray-900 h-12 font-medium"
+                                value={selectedQ2} onChange={(e) => setSelectedQ2(e.target.value)}>
                                 <option value="">Sélectionner...</option>
                                 {quartiers.map(q => <option key={q} value={q}>{q}</option>)}
                             </select>
                         </div>
                     </div>
-
-                    <button
-                        className="w-full md:w-auto px-8 py-3 bg-slate-900 text-white rounded-lg 
-                                 font-semibold hover:bg-slate-800 transition-all shadow-md
-                                 disabled:opacity-50 disabled:cursor-not-allowed flex items-center 
-                                 justify-center gap-2 mx-auto"
-                        onClick={handleCompare}
-                        disabled={!selectedQ1 || !selectedQ2 || loadingCompare}
-                    >
-                        {loadingCompare ? (
-                            <>
-                                <div className="w-5 h-5 border-3 border-white border-t-transparent 
-                                              rounded-full animate-spin"></div>
-                                Comparaison...
-                            </>
-                        ) : (
-                            <>
-                                <FaChartBar /> Comparer
-                            </>
-                        )}
+                    {/* SUPPRESSION DE L'ICÔNE FaChartBar */}
+                    <button className="btn w-full md:w-auto px-8 bg-slate-900 text-white hover:bg-slate-800 font-bold shadow-md mx-auto block"
+                        onClick={handleCompare} disabled={!selectedQ1 || !selectedQ2 || loadingCompare}>
+                        {loadingCompare ? <><span className="loading loading-spinner loading-sm"></span> Comparaison...</> : "Comparer les données"}
                     </button>
-
                     {comparisonData && (
-                        <div className="mt-8 border-t-2 border-gray-300 pt-6">
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                <div className="lg:col-span-2">
-                                    <div className="h-80 bg-gray-50 rounded-lg p-4">
-                                        <Bar options={chartOptions} data={chartData} />
-                                    </div>
+                        <div className="mt-8 border-t border-gray-200 pt-8 animate-fade-in">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                <div className="lg:col-span-2 bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                    <div className="h-64"><Bar options={chartOptions} data={chartData} /></div>
                                 </div>
-                                <div className="space-y-4">
-                                    <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
-                                        <div className="flex items-start gap-3">
-                                            <FaLeaf className="text-green-600 text-2xl flex-shrink-0 mt-1" />
-                                            <div>
-                                                <p className="font-bold text-green-900 mb-1">Résultat</p>
-                                                <p className="text-sm text-green-700">{comparisonData.message}</p>
-                                            </div>
+                                <div className="space-y-4 flex flex-col justify-center">
+                                    <div className="bg-green-50 border border-green-200 rounded-xl p-5">
+                                        <div className="flex items-start gap-3"><FaLeaf className="text-green-600 text-2xl mt-1" />
+                                            <div><p className="font-bold text-green-900 mb-1">Analyse</p><p className="text-sm text-green-800 leading-relaxed">{comparisonData.message}</p></div>
                                         </div>
                                     </div>
-
-                                    <div className="bg-white border-2 border-gray-300 rounded-lg p-4">
-                                        <p className="text-sm text-gray-600 mb-2">Différence</p>
-                                        <p className="text-3xl font-bold text-gray-900">
-                                            {Math.abs(comparisonData.difference).toFixed(1)}
-                                            <span className="text-sm font-normal text-gray-500 ml-2">kWh/m³</span>
-                                        </p>
+                                    <div className="bg-white border border-gray-300 rounded-xl p-5 shadow-sm">
+                                        <p className="text-xs text-gray-500 uppercase font-bold mb-1">Écart constaté</p>
+                                        <div className="flex items-baseline gap-2">
+                                            <p className="text-3xl font-black text-gray-900">{Math.abs(comparisonData.difference).toFixed(0)}</p>
+                                            <span className="text-sm text-gray-500 font-medium">kWh/m³</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -388,215 +318,123 @@ const Energy = () => {
             </div>
 
             {/* SECTION HISTORIQUE */}
-            <div className="bg-white rounded-xl shadow-md border-2 border-gray-300 overflow-hidden">
-                <div className="bg-gradient-to-r from-slate-900 to-slate-700 p-4">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                        <h2 className="font-bold text-xl text-white flex items-center gap-2">
-                            <FaHistory />
-                            Historique des Mesures
-                        </h2>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-300 overflow-hidden flex flex-col h-[500px]">
+                <div className="bg-gray-50 p-4 border-b border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <h2 className="font-bold text-lg text-gray-800 flex items-center gap-2">
+                        <FaHistory className="text-gray-500" />
+                        Historique des Mesures
+                    </h2>
+
+                    <div className="flex items-center gap-3">
+                        {/* Filtre Ressource (PLUS LARGE w-48) */}
+                        <div className="flex items-center gap-2">
+                            <FaFilter className="text-gray-400 text-sm" />
+                            <select
+                                className="select p-2 select-sm w-48 bg-white border border-gray-300 focus:border-slate-900 text-gray-700 font-medium"
+                                value={filterResource}
+                                onChange={(e) => setFilterResource(e.target.value)}
+                            >
+                                <option value="ALL">Toutes les ressources</option>
+                                <option value="ELECTRICITE">⚡ Électricité</option>
+                                <option value="EAU">💧 Eau</option>
+                                <option value="GAZ">🔥 Gaz</option>
+                            </select>
+                        </div>
+
+                        {/* Filtre Quartier (PLUS LARGE w-64) */}
                         <select
-                            className="px-4 py-2 rounded-lg border-2 border-white/20 
-                                     focus:border-white focus:outline-none transition-all
-                                     bg-white text-gray-900 font-semibold"
+                            className="select select-sm p-2 w-64 bg-white border border-gray-300 focus:border-slate-900 text-gray-700 font-medium"
                             value={selectedHistoryQuartier}
                             onChange={(e) => handleLoadHistory(e.target.value)}
                         >
-                            <option value="">Tous les quartiers</option>
+                            <option value="">-- Quartier --</option>
                             {quartiers.map(q => <option key={q} value={q}>{q}</option>)}
                         </select>
                     </div>
                 </div>
 
-                <div className="p-6">
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b-2 border-gray-300">
-                                    <th className="text-left py-4 px-4 text-gray-600 font-semibold">
-                                        <div className="flex items-center gap-2">
-                                            <FaCalendarAlt className="text-gray-400" />
-                                            Date & Heure
-                                        </div>
-                                    </th>
-                                    <th className="text-left py-4 px-4 text-gray-600 font-semibold">
-                                        Ressource
-                                    </th>
-                                    <th className="text-right py-4 px-4 text-gray-600 font-semibold">
-                                        Valeur
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {loadingHistory ? (
-                                    <tr>
-                                        <td colSpan="3" className="text-center py-12">
-                                            <div className="flex flex-col items-center gap-3">
-                                                <div className="w-10 h-10 border-4 border-slate-900 border-t-transparent 
-                                                              rounded-full animate-spin"></div>
-                                                <p className="text-gray-600">Chargement...</p>
-                                            </div>
+                <div className="overflow-auto flex-1 p-0">
+                    <table className="table table-pin-rows w-full">
+                        <thead className="bg-gray-50 text-gray-600 font-bold text-xs uppercase sticky top-0 z-10">
+                            <tr>
+                                <th className="bg-gray-50">Date</th>
+                                <th className="bg-gray-50">Ressource</th>
+                                <th className="bg-gray-50 text-right">Valeur</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loadingHistory ? (
+                                <tr><td colSpan="3" className="text-center py-20"><span className="loading loading-spinner loading-lg text-slate-300"></span></td></tr>
+                            ) : filteredHistory.length === 0 ? (
+                                <tr><td colSpan="3" className="text-center py-20 text-gray-400">Aucune donnée trouvée pour ce filtre</td></tr>
+                            ) : (
+                                filteredHistory.map((item) => (
+                                    <tr key={item.id} className="hover:bg-gray-50 transition-colors border-b border-gray-100">
+                                        <td className="font-mono text-xs text-gray-500">{new Date(parseInt(item.timestamp)).toLocaleString('fr-FR')}</td>
+                                        <td>
+                                            <span className={`px-3 py-1 rounded-full font-bold text-xs inline-flex items-center gap-2 shadow-sm ${getResourceColor(item.typeRessource)}`}>
+                                                {getResourceIcon(item.typeRessource)} {item.typeRessource}
+                                            </span>
+                                        </td>
+                                        <td className="text-right font-bold text-gray-900">
+                                            {item.valeur} <span className="text-xs font-normal text-gray-400 ml-1">{item.typeRessource === 'ELECTRICITE' ? 'kWh' : 'm³'}</span>
                                         </td>
                                     </tr>
-                                ) : historyData.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="3" className="text-center py-12">
-                                            <FaHistory className="text-6xl text-gray-300 mx-auto mb-4" />
-                                            <p className="text-gray-500">Aucune mesure disponible</p>
-                                            <p className="text-gray-400 text-sm mt-2">
-                                                Sélectionnez un quartier ou ajoutez une nouvelle mesure
-                                            </p>
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    historyData.map((item, index) => (
-                                        <tr
-                                            key={item.id}
-                                            className={`border-b border-gray-200 hover:bg-gray-50 transition-colors
-                                                      ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
-                                        >
-                                            <td className="py-4 px-4 font-mono text-sm text-gray-600">
-                                                {new Date(parseInt(item.timestamp)).toLocaleString('fr-FR', {
-                                                    day: '2-digit',
-                                                    month: 'short',
-                                                    year: 'numeric',
-                                                    hour: '2-digit',
-                                                    minute: '2-digit'
-                                                })}
-                                            </td>
-                                            <td className="py-4 px-4">
-                                                <span className={`px-3 py-1 rounded-lg font-semibold text-sm 
-                                                                flex items-center gap-2 w-fit
-                                                                ${getResourceColor(item.typeRessource)}`}>
-                                                    {getResourceIcon(item.typeRessource)}
-                                                    {item.typeRessource}
-                                                </span>
-                                            </td>
-                                            <td className="py-4 px-4 text-right">
-                                                <span className="text-2xl font-bold text-gray-900">
-                                                    {item.valeur}
-                                                </span>
-                                                <span className="text-sm font-normal text-gray-500 ml-2">
-                                                    {item.typeRessource === 'ELECTRICITE' ? 'kWh' : 'm³'}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {historyData.length > 0 && (
-                        <div className="mt-4 text-right text-sm text-gray-500">
-                            Total : {historyData.length} mesure{historyData.length > 1 ? 's' : ''}
-                        </div>
-                    )}
+                                ))
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
-            {/* --- MODALE D'AJOUT --- */}
-            <dialog id="add_modal" className="modal">
-                <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-                    <h3 className="font-bold text-2xl mb-4 text-gray-900 flex items-center gap-2">
-                        <FaSave className="text-slate-900" />
-                        Ajouter un relevé
-                    </h3>
-                    <form onSubmit={handleAddMeasure}>
-
-                        {/* Quartier */}
-                        <div className="mb-4">
-                            <label className="text-sm text-gray-600 font-semibold mb-2 block">
-                                Quartier
-                            </label>
-                            <select
-                                className="w-full px-4 py-3 rounded-lg border-2 border-gray-300  bg-white text-gray-900
-                                         focus:border-slate-900 focus:outline-none transition-all
-                                         bg-white"
-                                required
-                                value={formMeasure.quartier}
-                                onChange={(e) => setFormMeasure({ ...formMeasure, quartier: e.target.value })}
-                            >
+            {/* MODALE D'AJOUT */}
+            <dialog ref={modalRef} id="add_modal" className="modal">
+                <div className="modal-box !max-w-lg w-full !bg-white p-0 rounded-2xl shadow-2xl overflow-hidden scrollbar-hide">
+                    <div className="bg-slate-900 p-6 text-white">
+                        <h3 className="font-bold text-2xl flex items-center gap-2"><FaSave className="text-primary" /> Ajouter un relevé</h3>
+                        <p className="text-slate-400 text-sm mt-1">Enregistrez une nouvelle consommation manuellement.</p>
+                    </div>
+                    <form onSubmit={handleAddMeasure} className="p-8 space-y-5">
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 uppercase mb-1.5 block">Quartier</label>
+                            {/* AJOUT DE p-4 */}
+                            <select className="select w-full p-4 bg-white border-2 border-gray-300 focus:border-slate-900 text-gray-900 h-12 font-medium"
+                                required value={formMeasure.quartier} onChange={(e) => setFormMeasure({ ...formMeasure, quartier: e.target.value })}>
                                 <option value="">Sélectionner...</option>
                                 {quartiers.map(q => <option key={q} value={q}>{q}</option>)}
                                 <option value="Nouveau Quartier">+ Nouveau (Simulation)</option>
                             </select>
                         </div>
-
-                        {/* Ressource */}
-                        <div className="mb-4">
-                            <label className="text-sm text-gray-600 font-semibold mb-2 block">
-                                Type de Ressource
-                            </label>
-                            <div className="grid grid-cols-3 gap-2">
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Type de Ressource</label>
+                            <div className="grid grid-cols-3 gap-3">
                                 {['ELECTRICITE', 'EAU', 'GAZ'].map(type => (
-                                    <button
-                                        type="button"
-                                        key={type}
-                                        className={`px-4 py-3 rounded-lg font-semibold transition-all
-                                                  flex items-center justify-center gap-2
-                                                  ${formMeasure.ressource === type
-                                                ? 'bg-slate-900 text-white'
-                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                                        onClick={() => setFormMeasure({ ...formMeasure, ressource: type })}
-                                    >
-                                        {type === 'ELECTRICITE' && <FaBolt />}
-                                        {type === 'EAU' && <FaTint />}
-                                        {type === 'GAZ' && <FaBurn />}
+                                    <button type="button" key={type}
+                                        className={`py-3 rounded-lg font-bold text-sm transition-all flex flex-col items-center gap-1 border-2 ${formMeasure.ressource === type ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'}`}
+                                        onClick={() => setFormMeasure({ ...formMeasure, ressource: type })}>
+                                        <span className="text-lg">{type === 'ELECTRICITE' && <FaBolt />}{type === 'EAU' && <FaTint />}{type === 'GAZ' && <FaBurn />}</span>{type}
                                     </button>
                                 ))}
                             </div>
                         </div>
-
-                        {/* Valeur */}
-                        <div className="mb-6">
-                            <label className="text-sm text-gray-600 font-semibold mb-2 block">
-                                Valeur relevée
-                            </label>
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 uppercase mb-1.5 block">Valeur relevée</label>
                             <div className="relative">
-                                <input
-                                    type="number"
-                                    className="w-full px-4 py-3 pr-16 rounded-lg border-2 border-gray-300 bg-white text-gray-900
-                                             focus:border-slate-900 focus:outline-none transition-all
-                                             bg-white"
-                                    placeholder="ex: 150"
-                                    required
-                                    min="0"
-                                    step="0.01"
-                                    value={formMeasure.valeur}
-                                    onChange={(e) => setFormMeasure({ ...formMeasure, valeur: e.target.value })}
-                                />
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 
-                                               px-2 py-1 bg-gray-100 text-gray-600 rounded text-sm font-semibold">
-                                    {formMeasure.ressource === 'ELECTRICITE' ? 'kWh' : 'm³'}
-                                </span>
+                                {/* AJOUT DE p-4 */}
+                                <input type="number" className="input w-full p-4 bg-white border-2 border-gray-300 focus:border-slate-900 text-gray-900 h-12 font-bold text-lg pr-16"
+                                    placeholder="0.00" required min="0" step="0.01" value={formMeasure.valeur} onChange={(e) => setFormMeasure({ ...formMeasure, valeur: e.target.value })} />
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">{formMeasure.ressource === 'ELECTRICITE' ? 'kWh' : 'm³'}</span>
                             </div>
                         </div>
-
-                        <div className="flex gap-3">
-                            <button
-                                type="button"
-                                className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg 
-                                         font-semibold hover:bg-gray-200 transition-all"
-                                onClick={() => document.getElementById('add_modal').close()}
-                            >
-                                Annuler
-                            </button>
-                            <button
-                                type="submit"
-                                className="flex-1 px-4 py-3 bg-slate-900 text-white rounded-lg 
-                                         font-semibold hover:bg-slate-800 transition-all
-                                         disabled:opacity-50 disabled:cursor-not-allowed"
-                                disabled={loadingAdd}
-                            >
-                                {loadingAdd ? "Enregistrement..." : "Sauvegarder"}
+                        <div className="flex gap-4 pt-4">
+                            <button type="button" className="flex-1 btn bg-gray-200 text-black border border-gray-400 hover:bg-gray-300 font-bold h-12" onClick={() => modalRef.current.close()}>Annuler</button>
+                            <button type="submit" className="flex-1 btn btn-primary shadow-lg text-black border border-gray-800 font-bold h-12" disabled={loadingAdd}>
+                                {loadingAdd ? <span className="loading loading-spinner"></span> : "Sauvegarder"}
                             </button>
                         </div>
                     </form>
                 </div>
-                <form method="dialog" className="modal-backdrop bg-black bg-opacity-50">
-                    <button>close</button>
-                </form>
+                <form method="dialog" className="modal-backdrop"><button>close</button></form>
             </dialog>
 
         </div>

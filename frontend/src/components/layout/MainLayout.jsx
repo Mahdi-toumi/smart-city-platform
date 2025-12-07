@@ -1,6 +1,6 @@
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { FaCity, FaSignOutAlt, FaUser, FaHome, FaBus, FaBullhorn, FaLeaf, FaBolt } from 'react-icons/fa';
+import { FaCity, FaSignOutAlt, FaUser, FaHome, FaBus, FaBullhorn, FaBolt, FaLeaf, FaAmbulance } from 'react-icons/fa';
 import { Toaster } from 'react-hot-toast';
 
 const MainLayout = () => {
@@ -16,7 +16,6 @@ const MainLayout = () => {
     // Fonction pour vérifier si le lien est actif
     const isActive = (path) => {
         return location.pathname === path;
-
     };
 
     return (
@@ -26,25 +25,26 @@ const MainLayout = () => {
             {/* --- CONTENU PRINCIPAL --- */}
             <div className="drawer-content flex flex-col bg-gray-100 min-h-screen">
 
-                {/* Navbar Desktop - Amélioration */}
+                {/* Navbar Desktop */}
                 <div className="hidden lg:flex navbar bg-white shadow-md border-b border-gray-300 px-8">
                     <div className="flex-1">
-                        <h2 className="text-xl font-semibold text-gray-800">
+                        <h2 className="text-xl font-bold text-gray-800">
                             {location.pathname === '/' && 'Tableau de Bord'}
                             {location.pathname === '/mobility' && 'Mobilité & Trafic'}
                             {location.pathname === '/citizen' && 'Espace Citoyen'}
                             {location.pathname === '/energy' && 'Énergie'}
-                            {location.pathname === '/environment' && 'Environnement'}
+                            {location.pathname === '/emergency' && 'Service Urgence'}
+                            {location.pathname === '/admin/users' && 'Administration'}
                         </h2>
                     </div>
                     <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-3 px-4 py-2 bg-gray-100 rounded-lg border-2 border-gray-300">
+                        <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 rounded-lg border border-gray-200">
                             <div className="w-10 h-10 bg-slate-900 text-white rounded-lg flex items-center justify-center font-bold">
                                 {user?.username?.charAt(0).toUpperCase()}
                             </div>
                             <div>
-                                <p className="text-sm font-semibold text-gray-900">{user?.nomComplet || user?.username}</p>
-                                <p className="text-xs text-gray-500">{user?.role}</p>
+                                <p className="text-sm font-bold text-gray-900">{user?.nomComplet || user?.username}</p>
+                                <p className="text-xs text-gray-500 font-semibold">{user?.role}</p>
                             </div>
                         </div>
                     </div>
@@ -77,17 +77,17 @@ const MainLayout = () => {
             {/* --- SIDEBAR (Menu Latéral) --- */}
             <div className="drawer-side z-50">
                 <label htmlFor="my-drawer-2" className="drawer-overlay"></label>
-                <div className="w-80 min-h-full bg-slate-900 shadow-2xl flex flex-col border-r-2 border-slate-700">
+                <div className="w-80 min-h-full bg-slate-900 shadow-2xl flex flex-col border-r border-slate-800">
 
                     {/* Header Sidebar */}
-                    <div className="p-6 border-b-2 border-slate-800 bg-slate-900">
+                    <div className="p-6 border-b border-slate-800 bg-slate-900">
                         <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center">
-                                <FaCity className="text-slate-900 text-xl" />
+                            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-lg">
+                                <FaCity className="text-slate-900 text-2xl" />
                             </div>
                             <div>
-                                <span className="text-2xl font-bold text-white">SMART CITY</span>
-                                <p className="text-xs text-gray-400">Plateforme de gestion</p>
+                                <span className="text-2xl font-bold text-white tracking-wide">SMART CITY</span>
+                                <p className="text-xs text-gray-400 font-medium">Plateforme de gestion</p>
                             </div>
                         </div>
                     </div>
@@ -98,42 +98,46 @@ const MainLayout = () => {
                         {/* Dashboard */}
                         <Link
                             to="/"
-                            className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${isActive('/')
-                                ? 'bg-slate-700 text-slate-900 shadow-lg text-white'
-                                : 'text-gray-300 hover:bg-slate-800 hover:text-white '
+                            className={`flex items-center gap-3 px-4 py-3 rounded-lg font-bold transition-all ${isActive('/')
+                                ? 'bg-slate-700 text-white shadow-lg border-l-4 border-blue-500'
+                                : 'text-gray-400 hover:bg-slate-800 hover:text-white'
                                 }`}
                         >
                             <FaHome className="text-lg" />
                             <span>Tableau de Bord</span>
                         </Link>
 
-                        {/* Divider */}
-                        <div className="pt-4 pb-2">
-                            <p className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">ADMINISTRATION</p>
-                        </div>
+                        {/* 💡 SECTION ADMIN (Visible UNIQUEMENT pour le rôle ADMIN) */}
+                        {user?.role === 'ADMIN' && (
+                            <>
+                                <div className="pt-6 pb-2 px-4">
+                                    <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Administration</p>
+                                </div>
 
-                        <Link
-                            to="/admin/users"
-                            className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${isActive('/admin/users')
-                                ? 'bg-slate-700 text-slate-900 shadow-lg text-white'
-                                : 'text-gray-300 hover:bg-slate-800 hover:text-white'
-                                }`}
-                        >
-                            <FaUser className="text-lg" />
-                            <span>Gestion Utilisateurs</span>
-                        </Link>
+                                <Link
+                                    to="/admin/users"
+                                    className={`flex items-center gap-3 px-4 py-3 rounded-lg font-bold transition-all ${isActive('/admin/users')
+                                        ? 'bg-slate-700 text-white shadow-lg border-l-4 border-red-500'
+                                        : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                                        }`}
+                                >
+                                    <FaUser className="text-lg" />
+                                    <span>Gestion Utilisateurs</span>
+                                </Link>
+                            </>
+                        )}
 
-                        {/* Divider */}
-                        <div className="pt-4 pb-2">
-                            <p className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Services</p>
+                        {/* SECTION SERVICES */}
+                        <div className="pt-6 pb-2 px-4">
+                            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Services Urbains</p>
                         </div>
 
                         {/* Mobilité */}
                         <Link
                             to="/mobility"
-                            className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${isActive('/mobility')
-                                ? 'bg-slate-700 text-slate-900 shadow-lg text-white'
-                                : 'text-gray-300 hover:bg-slate-800 hover:text-white'
+                            className={`flex items-center gap-3 px-4 py-3 rounded-lg font-bold transition-all ${isActive('/mobility')
+                                ? 'bg-slate-700 text-white shadow-lg border-l-4 border-yellow-500'
+                                : 'text-gray-400 hover:bg-slate-800 hover:text-white'
                                 }`}
                         >
                             <FaBus className="text-lg" />
@@ -143,9 +147,9 @@ const MainLayout = () => {
                         {/* Citoyen */}
                         <Link
                             to="/citizen"
-                            className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${isActive('/citizen')
-                                ? 'bg-slate-700 text-slate-900 shadow-lg text-white'
-                                : 'text-gray-300 hover:bg-slate-800 hover:text-white '
+                            className={`flex items-center gap-3 px-4 py-3 rounded-lg font-bold transition-all ${isActive('/citizen')
+                                ? 'bg-slate-700 text-white shadow-lg border-l-4 border-green-500'
+                                : 'text-gray-400 hover:bg-slate-800 hover:text-white'
                                 }`}
                         >
                             <FaBullhorn className="text-lg" />
@@ -155,44 +159,45 @@ const MainLayout = () => {
                         {/* Énergie */}
                         <Link
                             to="/energy"
-                            className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${isActive('/energy')
-                                ? 'bg-slate-700 text-slate-900 shadow-lg text-white'
-                                : 'text-gray-300 hover:bg-slate-800 hover:text-white'
+                            className={`flex items-center gap-3 px-4 py-3 rounded-lg font-bold transition-all ${isActive('/energy')
+                                ? 'bg-slate-700 text-white shadow-lg border-l-4 border-purple-500'
+                                : 'text-gray-400 hover:bg-slate-800 hover:text-white'
                                 }`}
                         >
                             <FaBolt className="text-lg" />
                             <span>Énergie</span>
                         </Link>
 
-                        {/* Environnement */}
+                        {/* Urgence */}
                         <Link
-                            to="/environment"
-                            className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${isActive('/environment')
-                                ? 'bg-slate-700 text-slate-900 shadow-lg text-whiteg-white text-slate-900 shadow-lg border-2 border-white'
-                                : 'text-gray-300 hover:bg-slate-800 hover:text-white '
+                            to="/emergency"
+                            className={`flex items-center gap-3 px-4 py-3 rounded-lg font-bold transition-all ${isActive('/emergency') || isActive('/sos')
+                                ? 'bg-slate-700 text-white shadow-lg border-l-4 border-red-500'
+                                : 'text-gray-400 hover:bg-slate-800 hover:text-white'
                                 }`}
                         >
-                            <FaLeaf className="text-lg" />
-                            <span>Environnement</span>
+                            <FaAmbulance className="text-lg" />
+                            <span>Urgence & SOS</span>
                         </Link>
+
                     </nav>
 
-                    {/* User Profile (Bas de page) */}
-                    <div className="p-4 border-b-2 border-slate-800 bg-slate-900">
-                        <div className="flex items-center gap-3 px-4 py-3 bg-slate-800 rounded-lg mb-3 ">
-                            <div className="w-10 h-10 bg-white text-slate-900 rounded-lg flex items-center justify-center font-bold text-sm">
+                    {/* Footer Sidebar (Profil & Logout) */}
+                    <div className="p-4 border-t border-slate-800 bg-slate-900">
+                        <div className="flex items-center gap-3 px-4 py-3 bg-slate-800 rounded-xl mb-4 border border-slate-700">
+                            <div className="w-10 h-10 bg-white text-slate-900 rounded-lg flex items-center justify-center font-bold text-sm shadow-sm">
                                 {user?.username?.charAt(0).toUpperCase()}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-white text-sm truncate">{user?.nomComplet || user?.username}</p>
-                                <p className="text-xs text-gray-400">{user?.role}</p>
+                                <p className="font-bold text-white text-sm truncate">{user?.nomComplet || user?.username}</p>
+                                <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">{user?.role}</p>
                             </div>
                         </div>
 
                         <button
                             onClick={handleLogout}
                             className="w-full flex items-center justify-center gap-2 px-4 py-3 text-red-400 
-                                     hover:bg-red-900 hover:text-white rounded-lg font-medium transition-all"
+                                     hover:bg-red-500/10 hover:text-red-300 rounded-lg font-bold transition-all border border-transparent hover:border-red-500/20"
                         >
                             <FaSignOutAlt />
                             <span>Déconnexion</span>

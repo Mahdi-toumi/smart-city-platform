@@ -10,6 +10,7 @@ import Energy from './pages/services/Energy';
 import Emergency from './pages/services/Emergency';
 import NotFound from './pages/NotFound';
 import UsersManagement from './pages/admin/UsersManagement';
+import ServerError from './pages/ServerError';
 
 // 👇 AJOUTE L'IMPORT ICI
 import { Toaster } from 'react-hot-toast';
@@ -25,6 +26,8 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/500" element={<ServerError />} />
+      <Route path="/server-error" element={<ServerError />} />
 
       <Route path="/" element={<PrivateRoute><MainLayout /></PrivateRoute>}>
         <Route index element={<Dashboard />} />
