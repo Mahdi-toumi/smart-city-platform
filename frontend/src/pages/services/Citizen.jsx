@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { FaPlus, FaMapMarkerAlt, FaFilter, FaCheck, FaTimes, FaClock } from 'react-icons/fa';
+import toast from 'react-hot-toast';
 
 const Citizen = () => {
     const { user } = useAuth();
@@ -46,25 +47,32 @@ const Citizen = () => {
     const handleCreate = async (e) => {
         e.preventDefault();
         try {
-            await api.post('/api/citizen/reclamations', {
-                ...formData,
-                citoyenId: user.username // On lie au compte connecté
-            });
-            // Fermer modale et recharger
+            await api.post('/api/citizen/reclamations', { ...formData, citoyenId: user.username });
+
             document.getElementById('create_modal').close();
             setFormData({ type: '', description: '', adresse: '' });
             fetchData();
+
+            //  BEAUTÉ
+            toast.success("Réclamation envoyée avec succès !");
+
         } catch (err) {
-            alert("Erreur lors de la création");
+            toast.error("Erreur lors de l'envoi du signalement.");
         }
     };
 
     const handleStatusChange = async (id, newStatus) => {
         try {
             await api.patch(`/api/citizen/reclamations/${id}/status?status=${newStatus}`);
-            fetchData(); // Rafraichir la liste
+            fetchData();
+
+            // Message personnalisé selon le statut
+            if (newStatus === 'TRAITEE') toast.success("Ticket marqué comme résolu ! ✅");
+            if (newStatus === 'REJETEE') toast.error("Ticket rejeté ❌");
+            if (newStatus === 'EN_COURS') toast("Ticket pris en charge 👨‍🔧", { icon: '🚧' });
+
         } catch (err) {
-            alert("Impossible de changer le statut");
+            toast.error("Impossible de modifier le statut");
         }
     };
 

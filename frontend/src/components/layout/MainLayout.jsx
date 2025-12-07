@@ -1,6 +1,7 @@
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { FaCity, FaSignOutAlt, FaUser, FaHome, FaBus, FaBullhorn, FaLeaf, FaBolt } from 'react-icons/fa';
+import { Toaster } from 'react-hot-toast';
 
 const MainLayout = () => {
     const { user, logout } = useAuth();
@@ -29,6 +30,16 @@ const MainLayout = () => {
                 <main className="flex-1 p-6">
                     <Outlet />
                 </main>
+                <Toaster
+                    position="top-right"
+                    toastOptions={{
+                        duration: 4000,
+                        style: {
+                            background: '#333',
+                            color: '#fff',
+                        },
+                    }}
+                />
             </div>
 
             {/* --- SIDEBAR (Menu Latéral) --- */}

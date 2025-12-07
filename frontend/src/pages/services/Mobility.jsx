@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import toast from 'react-hot-toast';
 import {
     FaBus, FaSubway, FaTrain, FaWalking, FaBicycle, FaCar,
     FaClock, FaArrowRight, FaPlus, FaTrash, FaExclamationTriangle
@@ -42,36 +43,60 @@ const Mobility = () => {
     };
 
     // --- ACTIONS ADMIN ---
+    // --- 1. CRÉATION (Avec succès simple) ---
     const handleCreate = async (e) => {
         e.preventDefault();
         try {
             await api.post('/api/mobility/trajets', formData);
+
             document.getElementById('create_modal').close();
             setFormData({ depart: '', destination: '', typeTransport: '', dureeEstimee: 0, statusTrafic: 'FLUIDE' });
             fetchRoutes();
+
+            toast.success("Nouvelle ligne ajoutée au réseau ! 🚌");
         } catch (err) {
-            alert("Erreur création trajet");
+            console.error(err);
+            toast.error("Impossible de créer le trajet. Vérifiez les données.");
         }
     };
 
+    // --- 2. SUPPRESSION (Avec Promise pour l'effet de chargement) ---
     const handleDelete = async (id) => {
-        if (!window.confirm("Supprimer ce trajet ?")) return;
-        try {
-            await api.delete(`/api/mobility/trajets/${id}`);
-            setRoutes(routes.filter(r => r.id !== id));
-        } catch (err) {
-            alert("Erreur suppression");
-        }
+        if (!window.confirm("Voulez-vous vraiment supprimer ce trajet ?")) return;
+
+        const deletePromise = api.delete(`/api/mobility/trajets/${id}`);
+
+        toast.promise(deletePromise, {
+            loading: 'Suppression en cours...',
+            success: () => {
+                setRoutes(routes.filter(r => r.id !== id));
+                return 'Trajet supprimé définitivement 🗑️';
+            },
+            error: 'Erreur lors de la suppression.',
+        });
     };
 
+    // --- 3. CHANGEMENT DE STATUT (Avec message dynamique) ---
     const changeStatus = async (item, newStatus) => {
         try {
-            // Le PUT attend l'objet complet
             const updatedItem = { ...item, statusTrafic: newStatus };
             await api.put(`/api/mobility/trajets/${item.id}`, updatedItem);
             fetchRoutes();
+
+            // Feedback visuel selon la gravité
+            if (newStatus === 'PERTURBE' || newStatus === 'ARRET') {
+                toast("Alerte trafic signalée ! ⚠️", {
+                    icon: '📢',
+                    style: { background: '#FEF2F2', color: '#B91C1C' } // Rouge clair
+                });
+            } else if (newStatus === 'FLUIDE') {
+                toast.success("Retour à la normale ✅");
+            } else {
+                toast.success("Statut mis à jour");
+            }
+
         } catch (err) {
-            alert("Erreur mise à jour statut");
+            toast.error("Impossible de mettre à jour le statut.");
         }
     };
 

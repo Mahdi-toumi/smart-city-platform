@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef } from 'react';
-import api from '../../services/api'; // Notre client Axios
+import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css'; // CSS Leaflet obligatoire
+import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import toast from 'react-hot-toast'; // Import du Toast
 
-// Correction des icônes Leaflet qui buggent souvent avec React
+// Correction des icônes Leaflet
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
@@ -47,12 +48,8 @@ const Emergency = () => {
 
     // 1. Charger les données initiales
     useEffect(() => {
-        // Types d'urgence
         api.get('/api/orchestrator/types-urgence').then(res => setTypes(res.data));
-        // Historique
         fetchHistory();
-
-        // Cleanup stream on unmount
         return () => stopStream();
     }, []);
 
@@ -61,37 +58,46 @@ const Emergency = () => {
             .then(res => setHistory(res.data));
     };
 
-    // 2. Lancer l'alerte (POST)
+    // 2. Lancer l'alerte (POST) avec TOAST
     const handleSos = async (e) => {
         e.preventDefault();
         setLoadingSOS(true);
-        try {
-            // Position fixe pour la démo (Tunis Centre)
-            // Dans une vraie app mobile, on utiliserait navigator.geolocation
-            const myLat = 36.8065;
-            const myLon = 10.1815;
 
-            const res = await api.post('/api/orchestrator/sos', {
-                type: selectedType,
-                description: description,
-                latitude: myLat,
-                longitude: myLon,
-                citoyenId: user.username
+        // Position fixe pour la démo (Tunis Centre)
+        const myLat = 36.8065;
+        const myLon = 10.1815;
+
+        // On prépare la promesse de l'appel API
+        const sosCall = api.post('/api/orchestrator/sos', {
+            type: selectedType,
+            description: description,
+            latitude: myLat,
+            longitude: myLon,
+            citoyenId: user.username
+        });
+
+        // On enveloppe l'appel avec toast.promise
+        toast.promise(sosCall, {
+            loading: 'Transmission aux secours en cours...',
+            success: 'ALERTE REÇUE ! Une unité est en route 🚑',
+            error: 'Erreur de communication ! Appelez le 112.',
+        })
+            .then((res) => {
+                // SI SUCCÈS : On lance le tracking
+                const urgenceId = res.data.urgenceId;
+                setActiveAlertId(urgenceId);
+                setLiveStatus("Alerte reçue. Recherche d'une unité...");
+                fetchHistory();
+
+                // Démarrer le stream
+                startLiveTracking(urgenceId);
+            })
+            .catch((err) => {
+                console.error("Erreur SOS", err);
+            })
+            .finally(() => {
+                setLoadingSOS(false);
             });
-
-            const urgenceId = res.data.urgenceId;
-            setActiveAlertId(urgenceId);
-            setLiveStatus("Alerte reçue. Recherche d'une unité...");
-            fetchHistory(); // Mettre à jour la liste
-
-            // Démarrer le stream
-            startLiveTracking(urgenceId);
-
-        } catch (err) {
-            alert("Erreur SOS");
-        } finally {
-            setLoadingSOS(false);
-        }
     };
 
     // 3. Suivre en temps réel (SSE via Fetch pour gérer le Token)
@@ -112,43 +118,36 @@ const Emergency = () => {
                 if (done) break;
 
                 const chunk = decoder.decode(value, { stream: true });
-
-                // On sépare par ligne car plusieurs updates peuvent arriver d'un coup
                 const lines = chunk.split('\n');
 
                 for (const line of lines) {
-                    // On nettoie la ligne des espaces inutiles
                     const trimmedLine = line.trim();
-
-                    // On vérifie si c'est bien une ligne de données SSE
                     if (trimmedLine.startsWith('data:')) {
                         try {
-                            // 🛠️ CORRECTION ICI : 
-                            // On enlève les 5 premiers caractères ("data:") peu importe s'il y a un espace après ou non
+                            // Nettoyage robuste (avec ou sans espace)
                             const jsonStr = trimmedLine.substring(5).trim();
-
-                            // Si la ligne est vide (keep-alive), on ignore
                             if (!jsonStr) continue;
 
                             const data = JSON.parse(jsonStr);
 
-                            // Mise à jour de l'interface
                             setAmbulancePos([data.lat, data.lon]);
                             setLiveStatus(data.status);
                             setEta(data.eta);
 
                             if (data.eta <= 0) {
                                 setLiveStatus("Ambulance Arrivée !");
-                                stopStream(); // Fin du tracking
+                                toast.success("L'ambulance est arrivée sur les lieux !");
+                                stopStream();
                             }
                         } catch (e) {
-                            console.log("Erreur parsing JSON sur ligne :", trimmedLine, e);
+                            console.log("Stream parsing error", e);
                         }
                     }
                 }
             }
         } catch (err) {
-            console.error("Erreur Stream", err);
+            console.error("Stream error", err);
+            toast.error("Perte de signal avec l'unité de secours");
         }
     };
 
@@ -170,16 +169,14 @@ const Emergency = () => {
                         attribution='&copy; OpenStreetMap contributors'
                     />
 
-                    {/* Ma position (Fixe pour démo) */}
                     <Marker position={[36.8065, 10.1815]}>
                         <Popup>Vous êtes ici (Alerte lancée)</Popup>
                     </Marker>
 
-                    {/* Ambulance (Mobile) */}
                     {ambulancePos && (
                         <>
                             <Marker position={ambulancePos} icon={new L.Icon({
-                                iconUrl: 'https://cdn-icons-png.flaticon.com/512/2893/2893043.png', // Icone Ambulance
+                                iconUrl: 'https://cdn-icons-png.flaticon.com/512/2893/2893043.png',
                                 iconSize: [40, 40]
                             })}>
                                 <Popup>🚑 Ambulance en approche</Popup>
@@ -189,7 +186,6 @@ const Emergency = () => {
                     )}
                 </MapContainer>
 
-                {/* Overlay Status Live */}
                 {activeAlertId && (
                     <div className="absolute top-4 right-4 bg-white/90 p-4 rounded-xl shadow-lg z-[1000] w-64 border-l-4 border-error backdrop-blur-sm">
                         <h3 className="font-bold text-error flex items-center gap-2">
@@ -207,7 +203,6 @@ const Emergency = () => {
             {/* --- COLONNE DROITE : FORMULAIRE & HISTORIQUE --- */}
             <div className="flex flex-col gap-6 overflow-y-auto">
 
-                {/* FORMULAIRE SOS */}
                 <div className="card bg-base-100 shadow-xl border-t-4 border-error">
                     <div className="card-body">
                         <h2 className="card-title text-error">🚨 LANCER ALERTE</h2>
@@ -228,7 +223,7 @@ const Emergency = () => {
                             <div className="form-control w-full mb-4">
                                 <textarea
                                     className="textarea textarea-bordered textarea-error"
-                                    placeholder="Détails (ex: blessé conscient...)"
+                                    placeholder="Détails..."
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
                                 ></textarea>
@@ -244,7 +239,6 @@ const Emergency = () => {
                     </div>
                 </div>
 
-                {/* HISTORIQUE */}
                 <div className="card bg-base-100 shadow-xl flex-1">
                     <div className="card-body">
                         <h2 className="card-title text-gray-600 text-sm uppercase tracking-wide">Historique</h2>
@@ -262,7 +256,6 @@ const Emergency = () => {
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
     );
