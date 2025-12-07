@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import { FaPlus, FaMapMarkerAlt, FaFilter, FaCheck, FaTimes, FaClock } from 'react-icons/fa';
+import {
+    FaPlus, FaMapMarkerAlt, FaFilter, FaCheck, FaTimes, FaClock,
+    FaExclamationCircle, FaClipboardList, FaCheckCircle, FaHourglassHalf
+} from 'react-icons/fa';
 import toast from 'react-hot-toast';
 
 const Citizen = () => {
@@ -19,7 +22,6 @@ const Citizen = () => {
     // --- CHARGEMENT DES DONNÉES ---
     useEffect(() => {
         fetchData();
-        // Charger les catégories pour le formulaire
         api.get('/api/citizen/categories').then(res => setCategories(res.data));
     }, [user]);
 
@@ -28,7 +30,6 @@ const Citizen = () => {
         try {
             let url = '/api/citizen/reclamations/me?citoyenId=' + user.username;
 
-            // Si Admin, on voit tout
             if (isAdmin) {
                 url = '/api/citizen/reclamations/all';
             }
@@ -37,13 +38,13 @@ const Citizen = () => {
             setComplaints(res.data);
         } catch (err) {
             console.error(err);
+            toast.error("Erreur lors du chargement des réclamations");
         } finally {
             setLoading(false);
         }
     };
 
     // --- ACTIONS ---
-
     const handleCreate = async (e) => {
         e.preventDefault();
         try {
@@ -53,7 +54,6 @@ const Citizen = () => {
             setFormData({ type: '', description: '', adresse: '' });
             fetchData();
 
-            //  BEAUTÉ
             toast.success("Réclamation envoyée avec succès !");
 
         } catch (err) {
@@ -66,7 +66,6 @@ const Citizen = () => {
             await api.patch(`/api/citizen/reclamations/${id}/status?status=${newStatus}`);
             fetchData();
 
-            // Message personnalisé selon le statut
             if (newStatus === 'TRAITEE') toast.success("Ticket marqué comme résolu ! ✅");
             if (newStatus === 'REJETEE') toast.error("Ticket rejeté ❌");
             if (newStatus === 'EN_COURS') toast("Ticket pris en charge 👨‍🔧", { icon: '🚧' });
@@ -82,105 +81,291 @@ const Citizen = () => {
         : complaints.filter(c => c.statut === filterStatus);
 
     // --- HELPER VISUEL ---
-    const getStatusBadge = (status) => {
+    const getStatusStyle = (status) => {
         switch (status) {
-            case 'OUVERTE': return 'badge-error';
-            case 'EN_COURS': return 'badge-warning';
-            case 'TRAITEE': return 'badge-success';
-            default: return 'badge-ghost';
+            case 'OUVERTE':
+                return {
+                    border: 'border-l-4 border-red-500',
+                    badge: 'bg-red-100 text-red-700',
+                    barColor: 'bg-red-500'
+                };
+            case 'EN_COURS':
+                return {
+                    border: 'border-l-4 border-yellow-500',
+                    badge: 'bg-yellow-100 text-yellow-700',
+                    barColor: 'bg-yellow-500'
+                };
+            case 'TRAITEE':
+                return {
+                    border: 'border-l-4 border-green-500',
+                    badge: 'bg-green-100 text-green-700',
+                    barColor: 'bg-green-500'
+                };
+            default:
+                return {
+                    border: 'border-l-4 border-gray-300',
+                    badge: 'bg-gray-100 text-gray-700',
+                    barColor: 'bg-gray-500'
+                };
         }
     };
 
-    if (loading) return <div className="p-10 text-center"><span className="loading loading-spinner loading-lg"></span></div>;
+    const getStatusIcon = (status) => {
+        switch (status) {
+            case 'OUVERTE': return <FaExclamationCircle className="text-red-500" />;
+            case 'EN_COURS': return <FaHourglassHalf className="text-yellow-500" />;
+            case 'TRAITEE': return <FaCheckCircle className="text-green-500" />;
+            default: return <FaClipboardList className="text-gray-500" />;
+        }
+    };
+
+    // Stats rapides
+    const stats = {
+        total: complaints.length,
+        ouvertes: complaints.filter(c => c.statut === 'OUVERTE').length,
+        enCours: complaints.filter(c => c.statut === 'EN_COURS').length,
+        traitees: complaints.filter(c => c.statut === 'TRAITEE').length
+    };
+
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center min-h-screen">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-gray-600 font-medium">Chargement des réclamations...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="fade-in">
+        <div className="fade-in space-y-6">
             {/* HEADER */}
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
-                        📢 Espace Citoyen
-                        {isAdmin && <span className="badge badge-primary badge-outline">Vue Admin</span>}
-                    </h1>
-                    <p className="text-gray-500">Gérez les incidents et améliorez la ville.</p>
+            <div className="bg-white rounded-xl shadow-md border-2 border-gray-300 p-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                            <div className="p-3 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg text-white">
+                                <FaClipboardList className="text-2xl" />
+                            </div>
+                            Espace Citoyen
+                            {isAdmin && (
+                                <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg text-sm font-semibold">
+                                    Vue Admin
+                                </span>
+                            )}
+                        </h1>
+                        <p className="text-gray-600 mt-2">Gérez les incidents et améliorez la ville</p>
+                    </div>
+
+                    <button
+                        className="px-6 py-3 bg-slate-900 text-white rounded-lg font-semibold 
+                                 hover:bg-slate-800 transition-all shadow-md flex items-center gap-2"
+                        onClick={() => document.getElementById('create_modal').showModal()}
+                    >
+                        <FaPlus /> Nouvelle Réclamation
+                    </button>
+                </div>
+            </div>
+
+            {/* STATISTIQUES */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="bg-white rounded-xl shadow-md border-2 border-gray-300 p-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-gray-500 mb-1">Total</p>
+                            <p className="text-4xl font-bold text-gray-900">{stats.total}</p>
+                        </div>
+                        <div className="p-4 bg-blue-100 rounded-lg">
+                            <FaClipboardList className="text-3xl text-blue-600" />
+                        </div>
+                    </div>
                 </div>
 
-                {/* BOUTON CRÉER (Visible pour tout le monde) */}
-                <button
-                    className="btn btn-primary mt-4 md:mt-0"
-                    onClick={() => document.getElementById('create_modal').showModal()}
-                >
-                    <FaPlus /> Nouvelle Réclamation
-                </button>
+                <div className="bg-white rounded-xl shadow-md border-2 border-gray-300 p-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-gray-500 mb-1">Ouvertes</p>
+                            <p className="text-4xl font-bold text-red-600">{stats.ouvertes}</p>
+                        </div>
+                        <div className="p-4 bg-red-100 rounded-lg">
+                            <FaExclamationCircle className="text-3xl text-red-600" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-md border-2 border-gray-300 p-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-gray-500 mb-1">En Cours</p>
+                            <p className="text-4xl font-bold text-yellow-600">{stats.enCours}</p>
+                        </div>
+                        <div className="p-4 bg-yellow-100 rounded-lg">
+                            <FaHourglassHalf className="text-3xl text-yellow-600" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-md border-2 border-gray-300 p-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-gray-500 mb-1">Traitées</p>
+                            <p className="text-4xl font-bold text-green-600">{stats.traitees}</p>
+                        </div>
+                        <div className="p-4 bg-green-100 rounded-lg">
+                            <FaCheckCircle className="text-3xl text-green-600" />
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* FILTRES */}
-            <div className="tabs tabs-boxed mb-6 bg-base-100 shadow-sm w-fit">
-                <a className={`tab ${filterStatus === 'ALL' ? 'tab-active' : ''}`} onClick={() => setFilterStatus('ALL')}>Tous</a>
-                <a className={`tab ${filterStatus === 'OUVERTE' ? 'tab-active' : ''}`} onClick={() => setFilterStatus('OUVERTE')}>Ouvertes</a>
-                <a className={`tab ${filterStatus === 'TRAITEE' ? 'tab-active' : ''}`} onClick={() => setFilterStatus('TRAITEE')}>Traitées</a>
+            <div className="bg-white rounded-xl shadow-md border-2 border-gray-300 p-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <FaFilter className="text-gray-400" />
+                    <span className="text-gray-600 font-semibold mr-2">Filtrer par statut :</span>
+                    <button
+                        className={`px-4 py-2 rounded-lg font-semibold transition-all ${filterStatus === 'ALL'
+                            ? 'bg-slate-900 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                        onClick={() => setFilterStatus('ALL')}
+                    >
+                        Tous
+                    </button>
+                    <button
+                        className={`px-4 py-2 rounded-lg font-semibold transition-all ${filterStatus === 'OUVERTE'
+                            ? 'bg-red-600 text-white'
+                            : 'bg-red-100 text-red-700 hover:bg-red-200'
+                            }`}
+                        onClick={() => setFilterStatus('OUVERTE')}
+                    >
+                        Ouvertes
+                    </button>
+                    <button
+                        className={`px-4 py-2 rounded-lg font-semibold transition-all ${filterStatus === 'EN_COURS'
+                            ? 'bg-yellow-600 text-white'
+                            : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                            }`}
+                        onClick={() => setFilterStatus('EN_COURS')}
+                    >
+                        En Cours
+                    </button>
+                    <button
+                        className={`px-4 py-2 rounded-lg font-semibold transition-all ${filterStatus === 'TRAITEE'
+                            ? 'bg-green-600 text-white'
+                            : 'bg-green-100 text-green-700 hover:bg-green-200'
+                            }`}
+                        onClick={() => setFilterStatus('TRAITEE')}
+                    >
+                        Traitées
+                    </button>
+                </div>
             </div>
 
             {/* LISTE DES RÉCLAMATIONS */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredComplaints.length === 0 ? (
-                    <div className="col-span-full text-center py-10 text-gray-400">Aucune réclamation trouvée.</div>
+                    <div className="col-span-full bg-white rounded-xl shadow-md border-2 border-gray-300 p-12 text-center">
+                        <FaClipboardList className="text-6xl text-gray-300 mx-auto mb-4" />
+                        <p className="text-gray-500 text-lg">Aucune réclamation trouvée</p>
+                        <p className="text-gray-400 text-sm mt-2">Modifiez vos filtres ou créez une nouvelle réclamation</p>
+                    </div>
                 ) : (
-                    filteredComplaints.map((item) => (
-                        <div key={item.id} className="card bg-base-100 shadow-md hover:shadow-xl transition-shadow border border-gray-100">
-                            <div className="card-body">
-                                <div className="flex justify-between items-start">
-                                    <div className="badge badge-outline">{item.type}</div>
-                                    <div className={`badge ${getStatusBadge(item.statut)} text-white`}>{item.statut}</div>
-                                </div>
+                    filteredComplaints.map((item) => {
+                        const statusStyle = getStatusStyle(item.statut);
+                        return (
+                            <div key={item.id}
+                                className={`bg-white rounded-xl shadow-md border-2 border-gray-300 
+                                           overflow-hidden hover:shadow-xl transition-all ${statusStyle.border}`}>
+                                {/* Barre de statut en haut */}
+                                <div className={`h-2 ${statusStyle.barColor}`}></div>
 
-                                <h3 className="font-bold mt-2 text-lg line-clamp-1">{item.description}</h3>
-
-                                <div className="text-sm text-gray-500 mt-2 space-y-1">
-                                    <p className="flex items-center gap-2"><FaMapMarkerAlt className="text-primary" /> {item.adresse || "Non spécifiée"}</p>
-                                    <p className="flex items-center gap-2"><FaClock /> {new Date(item.dateCreation).toLocaleDateString()}</p>
-                                    {isAdmin && <p className="text-xs font-mono">Citoyen: {item.citoyenId}</p>}
-                                </div>
-
-                                {/* ACTIONS ADMIN */}
-                                {isAdmin && item.statut !== 'TRAITEE' && (
-                                    <div className="card-actions justify-end mt-4 pt-4 border-t">
-                                        <button
-                                            onClick={() => handleStatusChange(item.id, 'EN_COURS')}
-                                            className="btn btn-xs btn-warning tooltip" data-tip="Prendre en charge"
-                                        >
-                                            En cours
-                                        </button>
-                                        <button
-                                            onClick={() => handleStatusChange(item.id, 'TRAITEE')}
-                                            className="btn btn-xs btn-success text-white tooltip" data-tip="Marquer résolu"
-                                        >
-                                            <FaCheck />
-                                        </button>
-                                        <button
-                                            onClick={() => handleStatusChange(item.id, 'REJETEE')}
-                                            className="btn btn-xs btn-error text-white tooltip" data-tip="Rejeter"
-                                        >
-                                            <FaTimes />
-                                        </button>
+                                <div className="p-6">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <span className="px-3 py-1 bg-slate-100 text-slate-900 rounded-lg 
+                                                       font-semibold text-sm">
+                                            {item.type}
+                                        </span>
+                                        <span className={`px-4 py-2 rounded-lg font-semibold text-sm flex items-center gap-2 
+                                                        ${statusStyle.badge}`}>
+                                            {getStatusIcon(item.statut)}
+                                            {item.statut}
+                                        </span>
                                     </div>
-                                )}
+
+                                    <h3 className="font-bold text-lg text-gray-900 mb-3 line-clamp-2 min-h-[3.5rem]">
+                                        {item.description}
+                                    </h3>
+
+                                    <div className="border-t-2 border-gray-300 pt-4 space-y-2">
+                                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                                            <FaMapMarkerAlt className="text-orange-500 flex-shrink-0" />
+                                            <span className="truncate">{item.adresse || "Non spécifiée"}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                                            <FaClock className="text-blue-500 flex-shrink-0" />
+                                            <span>{new Date(item.dateCreation).toLocaleDateString('fr-FR', {
+                                                day: '2-digit',
+                                                month: 'long',
+                                                year: 'numeric'
+                                            })}</span>
+                                        </div>
+                                        {isAdmin && (
+                                            <div className="text-xs font-mono text-gray-400 truncate">
+                                                Par: {item.citoyenId}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* ACTIONS ADMIN */}
+                                    {isAdmin && item.statut !== 'TRAITEE' && item.statut !== 'REJETEE' && (
+                                        <div className="border-t-2 border-gray-300 pt-4 mt-4 flex gap-2">
+                                            <button
+                                                onClick={() => handleStatusChange(item.id, 'EN_COURS')}
+                                                className="flex-1 px-3 py-2 bg-yellow-50 text-yellow-700 rounded-lg 
+                                                         hover:bg-yellow-100 transition-all font-semibold text-sm
+                                                         flex items-center justify-center gap-1"
+                                            >
+                                                <FaHourglassHalf /> En cours
+                                            </button>
+                                            <button
+                                                onClick={() => handleStatusChange(item.id, 'TRAITEE')}
+                                                className="flex-1 px-3 py-2 bg-green-50 text-green-700 rounded-lg 
+                                                         hover:bg-green-100 transition-all font-semibold text-sm
+                                                         flex items-center justify-center gap-1"
+                                            >
+                                                <FaCheck /> Résolu
+                                            </button>
+                                            <button
+                                                onClick={() => handleStatusChange(item.id, 'REJETEE')}
+                                                className="px-3 py-2 bg-red-50 text-red-600 rounded-lg 
+                                                         hover:bg-red-100 transition-all"
+                                            >
+                                                <FaTimes />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ))
+                        );
+                    })
                 )}
             </div>
 
             {/* --- MODALE DE CRÉATION --- */}
             <dialog id="create_modal" className="modal">
-                <div className="modal-box">
-                    <h3 className="font-bold text-lg mb-4">Signaler un incident</h3>
+                <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+                    <h3 className="font-bold text-2xl mb-4 text-gray-900">Signaler un incident</h3>
                     <form onSubmit={handleCreate}>
 
-                        <div className="form-control w-full mb-3">
-                            <label className="label"><span className="label-text">Type d'incident</span></label>
+                        <div className="mb-4">
+                            <label className="text-sm text-gray-600 font-semibold mb-2 block">
+                                Type d'incident
+                            </label>
                             <select
-                                className="select select-bordered"
+                                className="w-full px-4 py-3 rounded-lg border-2 border-gray-300 
+                                         focus:border-slate-900 focus:outline-none transition-all bg-white text-gray-900"
                                 required
                                 value={formData.type}
                                 onChange={(e) => setFormData({ ...formData, type: e.target.value })}
@@ -190,22 +375,28 @@ const Citizen = () => {
                             </select>
                         </div>
 
-                        <div className="form-control w-full mb-3">
-                            <label className="label"><span className="label-text">Adresse / Lieu</span></label>
+                        <div className="mb-4">
+                            <label className="text-sm text-gray-600 font-semibold mb-2 block">
+                                Adresse / Lieu
+                            </label>
                             <input
                                 type="text"
                                 placeholder="Ex: Rue de la République"
-                                className="input input-bordered"
+                                className="w-full px-4 py-3 rounded-lg border-2 border-gray-300 bg-white text-gray-900 
+                                         focus:border-slate-900 focus:outline-none transition-all"
                                 required
                                 value={formData.adresse}
                                 onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
                             />
                         </div>
 
-                        <div className="form-control w-full mb-4">
-                            <label className="label"><span className="label-text">Description détaillée</span></label>
+                        <div className="mb-6">
+                            <label className="text-sm text-gray-600 font-semibold mb-2 block">
+                                Description détaillée
+                            </label>
                             <textarea
-                                className="textarea textarea-bordered h-24"
+                                className="w-full px-4 py-3 rounded-lg border-2 border-gray-300 bg-white text-gray-900
+                                         focus:border-slate-900 focus:outline-none transition-all h-32"
                                 placeholder="Décrivez le problème..."
                                 required
                                 value={formData.description}
@@ -213,9 +404,22 @@ const Citizen = () => {
                             ></textarea>
                         </div>
 
-                        <div className="modal-action">
-                            <button type="button" className="btn" onClick={() => document.getElementById('create_modal').close()}>Annuler</button>
-                            <button type="submit" className="btn btn-primary">Envoyer</button>
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg 
+                                         font-semibold hover:bg-gray-200 transition-all"
+                                onClick={() => document.getElementById('create_modal').close()}
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                type="submit"
+                                className="flex-1 px-4 py-3 bg-slate-900 text-white rounded-lg 
+                                         font-semibold hover:bg-slate-800 transition-all"
+                            >
+                                Envoyer
+                            </button>
                         </div>
                     </form>
                 </div>

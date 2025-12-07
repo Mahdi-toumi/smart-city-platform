@@ -9,6 +9,7 @@ import Mobility from './pages/services/Mobility';
 import Energy from './pages/services/Energy';
 import Emergency from './pages/services/Emergency';
 import NotFound from './pages/NotFound';
+import UsersManagement from './pages/admin/UsersManagement';
 
 // 👇 AJOUTE L'IMPORT ICI
 import { Toaster } from 'react-hot-toast';
@@ -32,6 +33,7 @@ function AppRoutes() {
         <Route path="energy" element={<Energy />} />
         <Route path="emergency" element={<Emergency />} />
         <Route path="sos" element={<Emergency />} />
+        <Route path="admin/users" element={<UsersManagement />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />

@@ -4,7 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import {
     FaBus, FaSubway, FaTrain, FaWalking, FaBicycle, FaCar,
-    FaClock, FaArrowRight, FaPlus, FaTrash, FaExclamationTriangle
+    FaClock, FaArrowRight, FaPlus, FaTrash, FaExclamationTriangle,
+    FaCheckCircle, FaMapMarkerAlt, FaChartLine
 } from 'react-icons/fa';
 
 const Mobility = () => {
@@ -26,7 +27,6 @@ const Mobility = () => {
     // --- CHARGEMENT ---
     useEffect(() => {
         fetchRoutes();
-        // Charger les types pour le select (BUS, METRO...)
         api.get('/api/mobility/types').then(res => setTypes(res.data));
     }, []);
 
@@ -37,13 +37,13 @@ const Mobility = () => {
             setRoutes(res.data);
         } catch (err) {
             console.error(err);
+            toast.error("Erreur lors du chargement des trajets");
         } finally {
             setLoading(false);
         }
     };
 
     // --- ACTIONS ADMIN ---
-    // --- 1. CRÉATION (Avec succès simple) ---
     const handleCreate = async (e) => {
         e.preventDefault();
         try {
@@ -60,7 +60,6 @@ const Mobility = () => {
         }
     };
 
-    // --- 2. SUPPRESSION (Avec Promise pour l'effet de chargement) ---
     const handleDelete = async (id) => {
         if (!window.confirm("Voulez-vous vraiment supprimer ce trajet ?")) return;
 
@@ -76,18 +75,16 @@ const Mobility = () => {
         });
     };
 
-    // --- 3. CHANGEMENT DE STATUT (Avec message dynamique) ---
     const changeStatus = async (item, newStatus) => {
         try {
             const updatedItem = { ...item, statusTrafic: newStatus };
             await api.put(`/api/mobility/trajets/${item.id}`, updatedItem);
             fetchRoutes();
 
-            // Feedback visuel selon la gravité
             if (newStatus === 'PERTURBE' || newStatus === 'ARRET') {
                 toast("Alerte trafic signalée ! ⚠️", {
                     icon: '📢',
-                    style: { background: '#FEF2F2', color: '#B91C1C' } // Rouge clair
+                    style: { background: '#FEF2F2', color: '#B91C1C' }
                 });
             } else if (newStatus === 'FLUIDE') {
                 toast.success("Retour à la normale ✅");
@@ -103,23 +100,37 @@ const Mobility = () => {
     // --- HELPERS VISUELS ---
     const getIcon = (type) => {
         switch (type) {
-            case 'BUS': return <FaBus />;
-            case 'METRO': return <FaSubway />;
-            case 'TRAIN': return <FaTrain />;
-            case 'TRAMWAY': return <FaSubway />; // Pas d'icone tram spécifique, on reuse subway
-            case 'VELO': return <FaBicycle />;
-            case 'PIETON': return <FaWalking />;
-            default: return <FaCar />;
+            case 'BUS': return <FaBus className="text-2xl" />;
+            case 'METRO': return <FaSubway className="text-2xl" />;
+            case 'TRAIN': return <FaTrain className="text-2xl" />;
+            case 'TRAMWAY': return <FaSubway className="text-2xl" />;
+            case 'VELO': return <FaBicycle className="text-2xl" />;
+            case 'PIETON': return <FaWalking className="text-2xl" />;
+            default: return <FaCar className="text-2xl" />;
         }
     };
 
-    const getStatusColor = (status) => {
+    const getStatusStyle = (status) => {
         switch (status) {
-            case 'FLUIDE': return 'badge-success text-white';
-            case 'DENSE': return 'badge-warning';
-            case 'PERTURBE': return 'badge-error text-white';
-            case 'ARRET': return 'badge-neutral text-white';
-            default: return 'badge-ghost';
+            case 'FLUIDE':
+                return { border: 'border-l-4 border-green-500', badge: 'bg-green-100 text-green-700' };
+            case 'DENSE':
+                return { border: 'border-l-4 border-yellow-500', badge: 'bg-yellow-100 text-yellow-700' };
+            case 'PERTURBE':
+                return { border: 'border-l-4 border-orange-500', badge: 'bg-orange-100 text-orange-700' };
+            case 'ARRET':
+                return { border: 'border-l-4 border-red-500', badge: 'bg-red-100 text-red-700' };
+            default:
+                return { border: 'border-l-4 border-gray-300', badge: 'bg-gray-100 text-gray-700' };
+        }
+    };
+
+    const getStatusIcon = (status) => {
+        switch (status) {
+            case 'FLUIDE': return <FaCheckCircle className="text-green-500 text-3xl" />;
+            case 'PERTURBE': return <FaExclamationTriangle className="text-orange-500 text-3xl" />;
+            case 'ARRET': return <FaExclamationTriangle className="text-red-500 text-3xl" />;
+            default: return <FaChartLine className="text-yellow-500 text-3xl" />;
         }
     };
 
@@ -128,129 +139,274 @@ const Mobility = () => {
         ? routes
         : routes.filter(r => r.typeTransport === filterType);
 
-    if (loading) return <div className="p-10 text-center"><span className="loading loading-spinner loading-lg"></span></div>;
+    // Stats rapides
+    const stats = {
+        total: routes.length,
+        fluide: routes.filter(r => r.statusTrafic === 'FLUIDE').length,
+        perturbe: routes.filter(r => r.statusTrafic === 'PERTURBE' || r.statusTrafic === 'ARRET').length
+    };
+
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center min-h-screen">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-gray-600 font-medium">Chargement du réseau...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="fade-in">
+        <div className="fade-in space-y-6">
             {/* HEADER */}
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
-                        🚦 Info Trafic & Transports
-                    </h1>
-                    <p className="text-gray-500">Consultez les itinéraires et l'état du réseau en temps réel.</p>
+            <div className="bg-white rounded-xl shadow-md border-2 border-gray-300 p-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                            <div className="p-3 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-lg text-white">
+                                <FaCar className="text-2xl" />
+                            </div>
+                            Info Trafic & Transports
+                        </h1>
+                        <p className="text-gray-600 mt-2">Consultez les itinéraires et l'état du réseau en temps réel</p>
+                    </div>
+                    {isAdmin && (
+                        <button
+                            className="px-6 py-3 bg-slate-900 text-white rounded-lg font-semibold 
+                                     hover:bg-slate-800 transition-all shadow-md flex items-center gap-2"
+                            onClick={() => document.getElementById('create_modal').showModal()}
+                        >
+                            <FaPlus /> Ajouter une ligne
+                        </button>
+                    )}
                 </div>
-                {isAdmin && (
-                    <button
-                        className="btn btn-primary mt-4 md:mt-0"
-                        onClick={() => document.getElementById('create_modal').showModal()}
-                    >
-                        <FaPlus /> Ajouter une ligne
-                    </button>
-                )}
+            </div>
+
+            {/* STATISTIQUES */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white rounded-xl shadow-md border-2 border-gray-300 p-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-gray-500 mb-1">Lignes Actives</p>
+                            <p className="text-4xl font-bold text-gray-900">{stats.total}</p>
+                        </div>
+                        <div className="p-4 bg-blue-100 rounded-lg">
+                            <FaBus className="text-3xl text-blue-600" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-md border-2 border-gray-300 p-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-gray-500 mb-1">Trafic Fluide</p>
+                            <p className="text-4xl font-bold text-green-600">{stats.fluide}</p>
+                        </div>
+                        <div className="p-4 bg-green-100 rounded-lg">
+                            <FaCheckCircle className="text-3xl text-green-600" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-md border-2 border-gray-300 p-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-gray-500 mb-1">Perturbations</p>
+                            <p className="text-4xl font-bold text-orange-600">{stats.perturbe}</p>
+                        </div>
+                        <div className="p-4 bg-orange-100 rounded-lg">
+                            <FaExclamationTriangle className="text-3xl text-orange-600" />
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* FILTRES */}
-            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                <button className={`btn btn-sm ${filterType === 'ALL' ? 'btn-neutral' : 'btn-ghost'}`} onClick={() => setFilterType('ALL')}>Tous</button>
-                {types.map(t => (
+            <div className="bg-white rounded-xl shadow-md border-2 border-gray-300 p-4">
+                <div className="flex flex-wrap gap-2">
                     <button
-                        key={t}
-                        className={`btn btn-sm ${filterType === t ? 'btn-neutral' : 'btn-ghost'}`}
-                        onClick={() => setFilterType(t)}
+                        className={`px-4 py-2 rounded-lg font-semibold transition-all ${filterType === 'ALL'
+                            ? 'bg-slate-900 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                        onClick={() => setFilterType('ALL')}
                     >
-                        {getIcon(t)} {t}
+                        Tous les transports
                     </button>
-                ))}
+                    {types.map(t => (
+                        <button
+                            key={t}
+                            className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${filterType === t
+                                ? 'bg-slate-900 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                            onClick={() => setFilterType(t)}
+                        >
+                            {getIcon(t)} {t}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* GRILLE DES TRAJETS */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredRoutes.map((item) => (
-                    <div key={item.id} className={`card bg-base-100 shadow-md border-l-4 ${item.statusTrafic === 'PERTURBE' || item.statusTrafic === 'ARRET' ? 'border-error' : 'border-success'}`}>
-                        <div className="card-body">
-                            {/* En-tête Carte */}
-                            <div className="flex justify-between items-start">
-                                <div className="flex items-center gap-2 text-xl font-bold text-gray-700">
-                                    {getIcon(item.typeTransport)}
-                                    <span>{item.typeTransport}</span>
-                                </div>
-                                <div className={`badge ${getStatusColor(item.statusTrafic)} font-bold`}>
-                                    {item.statusTrafic}
-                                </div>
-                            </div>
-
-                            {/* Trajet */}
-                            <div className="flex items-center gap-3 my-4 text-lg font-medium">
-                                <span>{item.depart}</span>
-                                <FaArrowRight className="text-gray-400" />
-                                <span>{item.destination}</span>
-                            </div>
-
-                            {/* Durée */}
-                            <div className="flex items-center gap-2 text-gray-500 text-sm">
-                                <FaClock />
-                                <span>Durée estimée : {item.dureeLisible}</span> {/* Utilise le champ calculé JSON du backend */}
-                            </div>
-
-                            {/* ACTIONS ADMIN (Changer Statut) */}
-                            {isAdmin && (
-                                <div className="card-actions justify-end mt-4 pt-4 border-t">
-                                    <div className="dropdown dropdown-top dropdown-end">
-                                        <div tabIndex={0} role="button" className="btn btn-xs btn-outline">Changer Statut</div>
-                                        <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
-                                            <li><a onClick={() => changeStatus(item, 'FLUIDE')}>🟢 Fluide</a></li>
-                                            <li><a onClick={() => changeStatus(item, 'DENSE')}>🟡 Dense</a></li>
-                                            <li><a onClick={() => changeStatus(item, 'PERTURBE')}>🔴 Perturbé</a></li>
-                                            <li><a onClick={() => changeStatus(item, 'ARRET')}>⚫ À l'arrêt</a></li>
-                                        </ul>
+                {filteredRoutes.map((item) => {
+                    const statusStyle = getStatusStyle(item.statusTrafic);
+                    return (
+                        <div key={item.id}
+                            className={`bg-white rounded-xl shadow-md border-2 border-gray-300 
+                                       overflow-hidden hover:shadow-xl transition-all ${statusStyle.border}`}>
+                            {/* En-tête avec gradient */}
+                            <div className="bg-gradient-to-r from-orange-500 to-yellow-500 p-4">
+                                <div className="flex items-center justify-between text-white">
+                                    <div className="flex items-center gap-2">
+                                        {getIcon(item.typeTransport)}
+                                        <h3 className="font-bold text-lg">{item.typeTransport}</h3>
                                     </div>
-                                    <button onClick={() => handleDelete(item.id)} className="btn btn-xs btn-circle btn-ghost text-error">
-                                        <FaTrash />
-                                    </button>
+                                    <span className={`px-3 py-1 rounded-lg font-semibold text-sm ${statusStyle.badge}`}>
+                                        {item.statusTrafic}
+                                    </span>
                                 </div>
-                            )}
+                            </div>
+
+                            {/* Corps de carte */}
+                            <div className="p-6">
+                                {/* Trajet */}
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="flex items-center gap-2 text-lg font-bold text-gray-900">
+                                        <FaMapMarkerAlt className="text-orange-500" />
+                                        <span>{item.depart}</span>
+                                    </div>
+                                    <FaArrowRight className="text-gray-400" />
+                                    <span className="text-lg font-bold text-gray-900">{item.destination}</span>
+                                </div>
+
+                                {/* Durée */}
+                                <div className="border-t-2 border-gray-300 pt-4 mb-4">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-gray-600 flex items-center gap-2">
+                                            <FaClock className="text-blue-500" /> Durée estimée
+                                        </span>
+                                        <span className="font-bold text-lg text-gray-900">
+                                            {item.dureeLisible || `${item.dureeEstimee} min`}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Statut visuel */}
+                                <div className="flex items-center justify-center py-3">
+                                    {getStatusIcon(item.statusTrafic)}
+                                </div>
+
+                                {/* ACTIONS ADMIN */}
+                                {isAdmin && (
+                                    <div className="border-t-2 border-gray-300 pt-4 flex gap-2">
+                                        <div className="flex-1">
+                                            <select
+                                                className="w-full px-3 py-2 rounded-lg border-2 border-gray-300 
+                                               focus:border-slate-900 focus:outline-none transition-all text-sm font-medium bg-white text-gray-900"
+                                                value={item.statusTrafic}
+                                                onChange={(e) => changeStatus(item, e.target.value)}
+                                            >
+                                                <option value="FLUIDE">🟢 Fluide</option>
+                                                <option value="DENSE">🟡 Dense</option>
+                                                <option value="PERTURBE">🔴 Perturbé</option>
+                                                <option value="ARRET">⚫ À l'arrêt</option>
+                                            </select>
+                                        </div>
+                                        <button
+                                            onClick={() => handleDelete(item.id)}
+                                            className="px-4 py-2 bg-red-50 text-red-600 rounded-lg 
+                                                     hover:bg-red-100 transition-all"
+                                        >
+                                            <FaTrash />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
+
+            {filteredRoutes.length === 0 && (
+                <div className="bg-white rounded-xl shadow-md border-2 border-gray-300 p-12 text-center">
+                    <FaCar className="text-6xl text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500 text-lg">Aucun trajet trouvé</p>
+                    <p className="text-gray-400 text-sm mt-2">Modifiez vos filtres pour voir plus de résultats</p>
+                </div>
+            )}
 
             {/* MODALE CRÉATION (Admin) */}
             <dialog id="create_modal" className="modal">
-                <div className="modal-box">
-                    <h3 className="font-bold text-lg mb-4">Ajouter un trajet</h3>
+                <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+                    <h3 className="font-bold text-2xl mb-4 text-gray-900">Ajouter un trajet</h3>
                     <form onSubmit={handleCreate}>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="form-control">
-                                <label className="label">Départ</label>
-                                <input type="text" className="input input-bordered" required
-                                    onChange={e => setFormData({ ...formData, depart: e.target.value })} />
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label className="text-sm text-gray-600 font-semibold mb-2 block">Départ</label>
+                                <input
+                                    type="text"
+                                    className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 
+                                     focus:border-slate-900 focus:outline-none transition-all bg-white text-gray-900"
+                                    required
+                                    onChange={e => setFormData({ ...formData, depart: e.target.value })}
+                                />
                             </div>
-                            <div className="form-control">
-                                <label className="label">Destination</label>
-                                <input type="text" className="input input-bordered" required
-                                    onChange={e => setFormData({ ...formData, destination: e.target.value })} />
+                            <div>
+                                <label className="text-sm text-gray-600 font-semibold mb-2 block">Destination</label>
+                                <input
+                                    type="text"
+                                    className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 
+                                     focus:border-slate-900 focus:outline-none transition-all bg-white text-gray-900"
+                                    required
+                                    onChange={e => setFormData({ ...formData, destination: e.target.value })}
+                                />
                             </div>
                         </div>
 
-                        <div className="form-control mt-3">
-                            <label className="label">Type</label>
-                            <select className="select select-bordered" required
-                                onChange={e => setFormData({ ...formData, typeTransport: e.target.value })}>
+                        <div className="mb-4">
+                            <label className="text-sm text-gray-600 font-semibold mb-2 block">Type</label>
+                            <select
+                                className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 
+                                 focus:border-slate-900 focus:outline-none transition-all bg-white text-gray-900"
+                                required
+                                onChange={e => setFormData({ ...formData, typeTransport: e.target.value })}
+                            >
                                 <option value="">Choisir...</option>
                                 {types.map(t => <option key={t} value={t}>{t}</option>)}
                             </select>
                         </div>
 
-                        <div className="form-control mt-3">
-                            <label className="label">Durée (minutes)</label>
-                            <input type="number" className="input input-bordered" required min="1"
-                                onChange={e => setFormData({ ...formData, dureeEstimee: e.target.value })} />
+                        <div className="mb-6">
+                            <label className="text-sm text-gray-600 font-semibold mb-2 block">Durée (minutes)</label>
+                            <input
+                                type="number"
+                                className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 
+                                focus:border-slate-900 focus:outline-none transition-all bg-white text-gray-900"
+                                required
+                                min="1"
+                                onChange={e => setFormData({ ...formData, dureeEstimee: e.target.value })}
+                            />
                         </div>
 
-                        <div className="modal-action">
-                            <button type="button" className="btn" onClick={() => document.getElementById('create_modal').close()}>Fermer</button>
-                            <button type="submit" className="btn btn-primary">Créer</button>
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg 
+                                         font-semibold hover:bg-gray-200 transition-all"
+                                onClick={() => document.getElementById('create_modal').close()}
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                type="submit"
+                                className="flex-1 px-4 py-3 bg-slate-900 text-white rounded-lg 
+                                         font-semibold hover:bg-slate-800 transition-all"
+                            >
+                                Créer
+                            </button>
                         </div>
                     </form>
                 </div>
