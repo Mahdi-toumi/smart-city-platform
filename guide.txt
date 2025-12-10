@@ -1,0 +1,6 @@
+Guide de démarrage du projet
+
+
+1- Exécuter le script init.bat.
+
+2- Ouvrir votre navigateur et accéder à l'adresse : http://localhost:3000
